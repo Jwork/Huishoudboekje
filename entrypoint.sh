@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# Force git to update file with LF and +x
+
 echo "🚀 Starting Expense Tracker..."
 
 # Wait for database to be ready
