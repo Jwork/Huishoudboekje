@@ -1,0 +1,62 @@
+<!-- Dashboard time selector: preset buttons + month picker -->
+<div class="bg-white rounded-lg shadow p-4 mb-6">
+    <div class="flex flex-wrap items-center gap-3">
+        <!-- Preset buttons -->
+        <div class="flex flex-wrap gap-2">
+            <button onclick="setPreset('thismonth')" data-preset="thismonth"
+                    class="preset-btn px-3 py-1.5 rounded text-sm font-medium border border-gray-300 hover:bg-blue-50 transition-colors">
+                Deze maand
+            </button>
+            <button onclick="setPreset('last3m')" data-preset="last3m"
+                    class="preset-btn px-3 py-1.5 rounded text-sm font-medium border border-gray-300 hover:bg-blue-50 transition-colors">
+                3 maanden
+            </button>
+            <button onclick="setPreset('last6m')" data-preset="last6m"
+                    class="preset-btn px-3 py-1.5 rounded text-sm font-medium border border-gray-300 hover:bg-blue-50 transition-colors">
+                6 maanden
+            </button>
+            <button onclick="setPreset('last12m')" data-preset="last12m"
+                    class="preset-btn px-3 py-1.5 rounded text-sm font-medium border border-gray-300 hover:bg-blue-50 transition-colors">
+                12 maanden
+            </button>
+            <button onclick="setPreset('ytd')" data-preset="ytd"
+                    class="preset-btn px-3 py-1.5 rounded text-sm font-medium border border-gray-300 hover:bg-blue-50 transition-colors">
+                Dit jaar
+            </button>
+            <button onclick="setPreset('all')" data-preset="all"
+                    class="preset-btn px-3 py-1.5 rounded text-sm font-medium border border-gray-300 hover:bg-blue-50 transition-colors">
+                Alles
+            </button>
+        </div>
+
+        <span class="text-gray-300">|</span>
+
+        <!-- Month picker -->
+        <div class="flex items-center gap-2">
+            <label class="text-sm text-gray-500">Maand:</label>
+            <select id="monthPicker" onchange="setMonthPicker()"
+                    class="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                <option value="">—</option>
+                <option value="1">Januari</option>
+                <option value="2">Februari</option>
+                <option value="3">Maart</option>
+                <option value="4">April</option>
+                <option value="5">Mei</option>
+                <option value="6">Juni</option>
+                <option value="7">Juli</option>
+                <option value="8">Augustus</option>
+                <option value="9">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+            </select>
+            <select id="yearPicker" onchange="setMonthPicker()"
+                    class="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">
+                <option value="">—</option>
+            </select>
+        </div>
+
+        <!-- Date range display -->
+        <div id="dateRangeDisplay" class="ml-auto text-sm text-gray-500"></div>
+    </div>
+</div>

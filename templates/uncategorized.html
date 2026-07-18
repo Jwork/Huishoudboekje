@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}Uncategorized Transactions - Expense Tracker{% endblock %}
+
+{% block content %}
+{# Server-side sortable header macro #}
+{% set f = filters or {} %}
+{% macro sort_header(col_key, title, align='left') %}
+{% set current_sort = f.sort or 'date' %}
+{% set current_dir = f.dir or 'desc' %}
+{% set new_dir = 'asc' if (current_sort == col_key and current_dir == 'desc') else 'desc' %}
+{% set arrow = '↑' if (current_sort == col_key and current_dir == 'asc') else ('↓' if current_sort == col_key else '↕') %}
+{% set url_params = {} %}
+{% for key in ['search', 'merchant', 'start_date', 'end_date', 'type', 'min_amount', 'max_amount'] %}
+    {% if f.get(key) %}{% if url_params.update({key: f[key]}) %}{% endif %}{% endif %}
+{% endfor %}
+<th class="px-4 py-3 text-{{ align }} text-xs font-medium text-gray-500 uppercase tracking-wider select-none">
+    <a href="{{ url_for('transactions.uncategorized', sort=col_key, dir=new_dir, **url_params) }}" 
+       class="flex items-center gap-1 {% if align == 'right' %}justify-end{% endif %} hover:text-gray-700 {% if current_sort == col_key %}text-blue-600{% endif %}">
+        {{ title }} <span>{{ arrow }}</span>
+    </a>
+</th>
+{% endmacro %}
+
+<div class="mb-6">
+    <h2 class="text-3xl font-bold mb-2">🏷️ Uncategorized Transactions</h2>
+    <p class="text-gray-600 mb-4">
+        {% if total_items > 0 %}
+            {{ total_items }} transaction(s) need categorization
+        {% else %}
+            All transactions are categorized! 🎉
+        {% endif %}
+    </p>
+    
+    {% if transactions or f.search %}
+    {# Filter bar partial #}
+    {% set filter_url = 'transactions.uncategorized' %}
+    {% set show_category_filter = False %}
+    {% set show_flags = False %}
+    {% include 'partials/filter_bar.html' with context %}
+
+    <!-- Bulk Categorize Selected -->
+    <div id="bulkSelectedPanel" class="bg-blue-50 rounded-lg p-4 shadow-lg mb-4 hidden">
+        <div class="flex flex-wrap gap-4 items-center">
+            <div class="font-medium text-blue-800">
+                <span id="selectedCount">0</span> selected
+            </div>
+            <div class="flex-1 flex gap-2 items-center">
+                <button type="button" onclick="openBulkCategoryPicker()" 
+                        class="px-4 py-2 border-2 border-blue-300 bg-white rounded-lg hover:bg-blue-50">
+                    🏷️ <span id="bulkCategoryLabel">Select Category</span>
+                </button>
+                <input type="hidden" id="bulkCategoryId" value="">
+                <label class="text-sm text-gray-600 flex items-center gap-1">
+                    <input type="checkbox" id="bulkCreateRule" class="rounded">
+                    Create rules
+                </label>
+                <button onclick="bulkCategorizeSelected()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    Apply to Selected
+                </button>
+            </div>
+            <button onclick="clearSelection()" class="text-gray-500 hover:text-gray-700 px-2">
+                ✕ Clear
+            </button>
+        </div>
+    </div>
+
+    <!-- Bulk Categorization by Merchant -->
+    <div class="bg-white rounded-lg p-6 shadow-lg mb-6">
+        <h3 class="text-lg font-bold mb-3">⚡ Quick Bulk Categorize by Merchant</h3>
+        <p class="text-sm text-gray-600 mb-3">Select a merchant to categorize all their transactions at once</p>
+        <form method="post" action="{{ url_for('transactions.bulk_categorize') }}" class="flex flex-wrap gap-4 items-end">
+            <input type="hidden" name="redirect_to" value="transactions.uncategorized">
+            <div class="flex-1 min-w-64">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Merchant</label>
+                <select name="merchant" required class="w-full px-4 py-2 border rounded-lg">
+                    <option value="">-- Select Merchant --</option>
+                    {% for m in merchants %}
+                    {% if m.uncategorized > 0 %}
+                    <option value="{{ m.name }}">
+                        {{ m.name[:40] }}{% if m.name|length > 40 %}...{% endif %} ({{ m.uncategorized }} uncategorized)
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="w-48">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <div class="flex gap-1">
+                    <select name="category_id" required class="flex-1 px-4 py-2 border rounded-lg category-select">
+                        <option value="">-- Select --</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" onclick="openCategoryModal()" class="px-2 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200" title="Add new category">
+                        ➕
+                    </button>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="text-sm text-gray-600 flex items-center gap-1">
+                    <input type="checkbox" name="create_rule" class="rounded" checked>
+                    Create rule for future imports
+                </label>
+            </div>
+            <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                Apply to All
+            </button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Transactions Table -->
+<div class="bg-white rounded-lg shadow-lg overflow-hidden relative">
+    <div class="overflow-x-auto">
+        <table class="w-full" id="transactionsTable">
+            <thead class="bg-yellow-50">
+                <tr>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="rounded" title="Select all visible">
+                    </th>
+                    {{ sort_header('date', 'Date') }}
+                    {{ sort_header('merchant', 'Merchant') }}
+                    {{ sort_header('description', 'Description') }}
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-56">Assign Category</th>
+                    {{ sort_header('type', 'Dir') }}
+                    {{ sort_header('amount', 'Amount', 'right') }}
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% if transactions %}
+                {% for trans in transactions %}
+                <tr class="hover:bg-yellow-50 transaction-row" data-id="{{ trans.id }}">
+                    <td class="px-4 py-3 text-center">
+                        <input type="checkbox" class="row-checkbox rounded" value="{{ trans.id }}" onchange="updateSelection()">
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">{{ trans.date }}</td>
+                    <td class="px-4 py-3 text-sm font-medium" title="{{ trans.merchant }}">
+                        {{ trans.merchant[:25] if trans.merchant else '-' }}{% if trans.merchant and trans.merchant|length > 25 %}...{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600" title="{{ trans.description }}">
+                        {{ trans.description[:40] if trans.description else '-' }}{% if trans.description and trans.description|length > 40 %}...{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <div class="flex gap-1 items-center">
+                            <button type="button" 
+                                    onclick="openCategoryPicker({{ trans.id }}, '{{ trans.merchant|e }}')"
+                                    class="text-sm border-2 border-yellow-300 rounded px-3 py-1 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400 transition-colors">
+                                🏷️ Select Category
+                            </button>
+                            <label class="text-xs text-gray-500 flex items-center gap-1" title="Create auto-categorization rule for this merchant">
+                                <input type="checkbox" id="rule_{{ trans.id }}" class="rounded">
+                                Rule
+                            </label>
+                            <a href="{{ url_for('rules.index', pattern=trans.merchant or '', counter_account=trans.counter_account or '', transaction_type=trans.direction or '') }}"
+                               class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline ml-1" title="Create a rule from this transaction">
+                                📏 Rule
+                            </a>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                        <span class="{% if trans.direction == 'credit' %}text-green-600{% else %}text-red-600{% endif %}">
+                            {{ 'Income' if trans.direction == 'credit' else 'Expense' }}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold {% if trans.direction == 'credit' %}text-green-600{% else %}text-red-600{% endif %}">
+                        € {{ '{:,.2f}'.format(trans.amount) }}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="7" class="px-6 py-12 text-center">
+                        <div class="text-6xl mb-4">🎉</div>
+                        <div class="text-xl font-semibold text-green-600 mb-2">All Done!</div>
+                        <div class="text-gray-500">All your transactions have been categorized.</div>
+                        <a href="{{ url_for('transactions.transactions') }}" class="inline-block mt-4 text-blue-600 hover:text-blue-800">
+                            View all transactions →
+                        </a>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {# Pagination partial #}
+    {% set page_url = 'transactions.uncategorized' %}
+    {% include 'partials/pagination.html' with context %}
+</div>
+
+{% if transactions %}
+<div class="mt-4 text-sm text-gray-500 text-center">
+    💡 Tip: Check "Rule" when categorizing to automatically apply the same category to future imports from the same merchant.
+</div>
+{% endif %}
+
+<!-- Add Category Modal -->
+<div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold">➕ Add New Category</h3>
+            <button onclick="closeCategoryModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <form id="addCategoryForm" onsubmit="submitCategory(event)">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                <input type="text" id="newCategoryName" required 
+                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                       placeholder="e.g. Groceries, Entertainment">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Parent Category (optional)</label>
+                <select id="parentCategory" class="w-full px-4 py-2 border rounded-lg">
+                    <option value="">None (Top Level)</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="categoryError" class="mb-4 text-red-600 text-sm hidden"></div>
+            <div class="flex gap-2">
+                <button type="button" onclick="closeCategoryModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Add Category
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Advanced Category Picker Modal -->
+<div id="categoryPickerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col mx-4">
+        <!-- Header -->
+        <div class="flex justify-between items-center p-4 border-b">
+            <div>
+                <h3 class="text-lg font-bold">🏷️ Select Category</h3>
+                <p class="text-sm text-gray-500" id="pickerMerchant"></p>
+            </div>
+            <button onclick="closeCategoryPicker()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        
+        <!-- Search -->
+        <div class="p-4 border-b">
+            <input type="text" id="categorySearch" 
+                   placeholder="🔍 Type to search categories..."
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                   oninput="filterCategories()">
+        </div>
+        
+        <!-- Category Tree -->
+        <div class="flex-1 overflow-y-auto p-4" id="categoryTreeContainer">
+            <!-- Recently Used Section -->
+            <div id="recentCategories" class="mb-4 hidden">
+                <div class="font-bold text-gray-800 py-2 px-3 bg-blue-100 rounded-lg flex items-center gap-2 mb-2">
+                    <span class="text-lg">⏱️</span> Recently Used
+                </div>
+                <div id="recentCategoriesList" class="flex flex-wrap gap-2 ml-2 mb-4"></div>
+            </div>
+            
+            <!-- Category tree rendered by JavaScript -->
+            <div id="categoryTreeContent"></div>
+            
+            <!-- No results message -->
+            <div id="noResults" class="hidden text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">🔍</div>
+                <div>No categories found</div>
+                <button type="button" onclick="closeCategoryPicker(); openCategoryModal();" 
+                        class="mt-3 text-blue-600 hover:text-blue-800">
+                    ➕ Add new category
+                </button>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="border-t p-4 flex justify-between items-center bg-gray-50">
+            <button type="button" onclick="closeCategoryPicker(); openCategoryModal();" 
+                    class="text-blue-600 hover:text-blue-800 text-sm">
+                ➕ Add new category
+            </button>
+            <button onclick="closeCategoryPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Category tree data from server
+    window.categoryTreeData = {{ category_tree | tojson | safe }};
+    // Flag: uncategorized page removes rows on categorize
+    window.isUncategorizedPage = true;
+</script>
+<script src="{{ url_for('static', filename='js/transactions.js') }}"></script>
+{% endblock %}

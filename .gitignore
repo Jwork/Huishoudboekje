@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+*.egg-info/
+
+# AI Assistants
+.copilotignore
+.geminiignore
+copilotinstructions.md
+
+# Environment
+.env
+.env.local
+*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data & Uploads
+data/
+uploads/*
+!uploads/.gitkeep
+/debug/
+
+# Legacy SQLite (removed)
+*.db
+
+# Exports
+*.csv
+transactions_export.csv
+
+# Logs
+*.log
+debug.log

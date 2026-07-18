@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Import Transactions - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <div class="bg-white rounded-lg p-6 shadow-lg mb-6">
+        <h2 class="text-3xl font-bold mb-4">📥 Import Transactions</h2>
+        <p class="text-gray-600 mb-6">
+            Upload a CSV file from your bank to import transactions.
+        </p>
+        
+        <form method="post" action="{{ url_for('transactions.import_csv') }}" enctype="multipart/form-data" class="space-y-6">
+            <!-- Format selector -->
+            <div>
+                <label for="format_id" class="block text-sm font-medium text-gray-700 mb-1">Bank / Format</label>
+                <select name="format_id" id="format_id"
+                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="auto">Auto-detect</option>
+                    {% for imp in importers %}
+                    <option value="{{ imp.id }}">{{ imp.name }}</option>
+                    {% endfor %}
+                </select>
+                <p class="mt-1 text-xs text-gray-500" id="detect-status"></p>
+            </div>
+
+            <!-- File upload -->
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition-colors">
+                <input type="file" name="csv_file" accept=".csv" required id="csv_file"
+                       class="w-full text-sm text-gray-500
+                              file:mr-4 file:py-2 file:px-4
+                              file:rounded-full file:border-0
+                              file:text-sm file:font-semibold
+                              file:bg-blue-50 file:text-blue-700
+                              hover:file:bg-blue-100
+                              cursor-pointer">
+                <p class="mt-2 text-xs text-gray-500">.csv files only</p>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <a href="{{ url_for('transactions.transactions') }}" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium">
+                    Import Transactions
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Rebuild from retained files -->
+    <div class="bg-orange-50 border border-orange-200 rounded-lg p-6 mb-6">
+        <h3 class="text-lg font-bold text-orange-800 mb-2">🔄 Rebuild Database</h3>
+        <p class="text-orange-900 text-sm mb-4">
+            Re-import all transactions from the retained CSV files.
+            This will clear all existing transactions and re-import them from scratch.
+            Categories, rules, and other settings are preserved.
+        </p>
+        <form method="post" action="{{ url_for('transactions.rebuild_from_files') }}"
+              onsubmit="return confirm('This will delete all transactions and re-import from retained files. Categories and rules will be preserved. Continue?');">
+            <button type="submit" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 font-medium">
+                Rebuild from Files
+            </button>
+        </form>
+    </div>
+
+    <!-- Import History -->
+    {% if import_batches %}
+    <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+        <div class="p-4 bg-gray-50 border-b">
+            <h3 class="font-bold">📋 Import History</h3>
+            <p class="text-sm text-gray-600 mt-1">Previously imported files and their date ranges</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Filename</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Format</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Rows</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Range</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Imported At</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for batch in import_batches %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm">{{ batch.filename }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            {% if batch.format_id %}
+                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded">{{ batch.format_id }}</span>
+                            {% else %}
+                            <span class="text-gray-400 italic text-xs">auto</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm font-mono text-xs">
+                            {% if batch.account %}{{ batch.account[-8:] }}{% else %}<span class="text-gray-400">—</span>{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-center">{{ batch.transaction_count or batch.row_count or 0 }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            {% if batch.min_date and batch.max_date %}
+                            {{ batch.min_date }} → {{ batch.max_date }}
+                            {% else %}
+                            <span class="text-gray-400 italic">no data</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">{{ batch.imported_at.strftime('%Y-%m-%d %H:%M') if batch.imported_at else '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Instructions / Help -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 class="text-lg font-bold text-blue-800 mb-2">Instructions</h3>
+        <ul class="list-disc list-inside text-blue-900 space-y-2">
+            <li>Select your bank format from the dropdown, or leave on <strong>Auto-detect</strong>.</li>
+            <li>When you pick a file, the system will try to auto-detect the format and pre-select it.</li>
+            <li>Duplicates are automatically detected and skipped based on date, amount, and description.</li>
+            <li>Transfers between your own accounts are automatically detected.</li>
+            <li>Uploaded files are retained locally for database rebuild.</li>
+        </ul>
+
+        <h4 class="font-semibold text-blue-800 mt-4 mb-1">Supported formats</h4>
+        <ul class="list-disc list-inside text-blue-900 space-y-1 text-sm">
+            {% for imp in importers %}
+            <li>{{ imp.name }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<script>
+// Auto-detect format when a file is selected
+document.getElementById('csv_file').addEventListener('change', async function() {
+    const file = this.files[0];
+    const status = document.getElementById('detect-status');
+    const select = document.getElementById('format_id');
+
+    if (!file) return;
+
+    status.textContent = 'Detecting format...';
+    status.className = 'mt-1 text-xs text-gray-500';
+
+    const formData = new FormData();
+    formData.append('csv_file', file);
+
+    try {
+        const resp = await fetch('{{ url_for("transactions.detect_csv_format") }}', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await resp.json();
+
+        if (data.format_id) {
+            select.value = data.format_id;
+            status.textContent = `Detected: ${data.format_name}`;
+            status.className = 'mt-1 text-xs text-green-600 font-medium';
+        } else {
+            select.value = 'auto';
+            status.textContent = 'Format not recognized — please select manually.';
+            status.className = 'mt-1 text-xs text-orange-600';
+        }
+    } catch (err) {
+        status.textContent = 'Detection failed — you can still select manually.';
+        status.className = 'mt-1 text-xs text-orange-600';
+    }
+});
+</script>
+{% endblock %}

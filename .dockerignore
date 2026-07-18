@@ -1,0 +1,41 @@
+# Python cache & bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+env/
+venv/
+.venv
+env.bak/
+venv.bak/
+
+# Environment files
+.env
+.env.local
+*.local
+
+# Git
+.git/
+.gitignore
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# Data & uploads (created at runtime)
+*.db
+*.csv
+data/
+uploads/
+
+# Development/debug scripts
+debug_*.py
+inspect_*.py
+export_*.py
+
+# Deployment script
+deploy.ps1

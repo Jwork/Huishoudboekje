@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Accounts - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-start">
+    <div>
+        <h2 class="text-3xl font-bold mb-4">🏦 Manage Accounts</h2>
+        <p class="text-gray-600 mb-4">Name your accounts and set up transfer accounts (savings, spouse, etc.)</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <label class="text-sm text-gray-600">
+            <input type="checkbox" onchange="window.location.href='?show_all=' + (this.checked ? 'true' : 'false')"
+                   {% if show_all %}checked{% endif %} class="mr-1">
+            Show counter accounts (for cashflow)
+        </label>
+    </div>
+</div>
+
+<!-- Add/Edit Account Name -->
+<div class="bg-white rounded-lg p-6 shadow-lg mb-6">
+    <h3 class="text-lg font-bold mb-3">✏️ Set Account Name</h3>
+    <form method="post" action="{{ url_for('accounts.set_account_name') }}" class="flex flex-wrap gap-4 items-end">
+        <div class="flex-1 min-w-64">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Account Number (IBAN)</label>
+            <select name="account_number" required class="w-full px-4 py-2 border rounded-lg">
+                <option value="">-- Select Account --</option>
+                {% for account in accounts %}
+                <option value="{{ account.number }}">
+                    {{ account.number }}{% if account.has_name %} → {{ account.name }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex-1 min-w-48">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Friendly Name</label>
+            <input type="text" name="name" required placeholder="e.g. My Checking, Savings, Wife" 
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+        </div>
+        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+            Save Name
+        </button>
+    </form>
+</div>
+
+<!-- Account List -->
+<div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+    <div class="p-4 bg-gray-50 border-b">
+        <h3 class="font-bold">📋 Your Accounts</h3>
+        <p class="text-sm text-gray-600 mt-1">Check "Transfer" to exclude account from budget calculations (e.g., savings accounts)</p>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Number</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Friendly Name</th>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Transfer Account</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for account in accounts %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm font-mono">{{ account.number }}</td>
+                    <td class="px-4 py-3 text-sm">
+                        {% if account.has_name %}
+                        <span class="font-semibold">{{ account.name }}</span>
+                        {% else %}
+                        <span class="text-gray-400 italic">Not named</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <form method="post" action="{{ url_for('accounts.toggle_transfer_account') }}" class="inline">
+                            <input type="hidden" name="account_number" value="{{ account.number }}">
+                            <input type="hidden" name="is_transfer" value="{{ '0' if account.is_transfer else '1' }}">
+                            <label class="inline-flex items-center cursor-pointer">
+                                <input type="checkbox" 
+                                       {% if account.is_transfer %}checked{% endif %}
+                                       onchange="this.form.submit()"
+                                       class="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm {% if account.is_transfer %}text-blue-600 font-medium{% else %}text-gray-500{% endif %}">
+                                    {{ 'Savings/Transfer' if account.is_transfer else 'Regular' }}
+                                </span>
+                            </label>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Linked Transfer Pairs Section -->
+<div class="bg-purple-50 rounded-lg p-6 shadow-lg mb-6 border border-purple-200">
+    <h3 class="text-lg font-bold mb-3 text-purple-800">🔗 Linked Transfer Pairs</h3>
+    <p class="text-sm text-purple-700 mb-4">
+        When you import statements from both accounts (e.g., checking AND savings), matching transfers are automatically paired.
+        Paired transactions cancel each other out in totals.
+    </p>
+    
+    {% if unlinked_pairs %}
+    <div class="mb-4 bg-yellow-100 border border-yellow-300 rounded-lg p-4">
+        <div class="flex justify-between items-center mb-3">
+            <div class="text-yellow-800 font-medium">
+                ⚠️ {{ unlinked_pairs|length }} potential pair(s) found that can be linked
+            </div>
+            <form method="post" action="{{ url_for('accounts.auto_link_transfers') }}" class="inline">
+                <button type="submit" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm">
+                    🔗 Link All Matching Pairs
+                </button>
+            </form>
+        </div>
+        <div class="max-h-48 overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-yellow-200 sticky top-0">
+                    <tr>
+                        <th class="px-2 py-1 text-left">Date</th>
+                        <th class="px-2 py-1 text-left">From</th>
+                        <th class="px-2 py-1 text-left">To</th>
+                        <th class="px-2 py-1 text-right">Amount</th>
+                        <th class="px-2 py-1 text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pair in unlinked_pairs[:10] %}
+                    <tr class="border-t border-yellow-200">
+                        <td class="px-2 py-1">{{ pair.date }}</td>
+                        <td class="px-2 py-1 font-mono text-xs">{{ pair.account1[-8:] }}</td>
+                        <td class="px-2 py-1 font-mono text-xs">{{ pair.account2[-8:] }}</td>
+                        <td class="px-2 py-1 text-right">€{{ "%.2f"|format(pair.amount1|abs) }}</td>
+                        <td class="px-2 py-1 text-center">
+                            <form method="post" action="{{ url_for('accounts.link_transfer_pair') }}" class="inline">
+                                <input type="hidden" name="id1" value="{{ pair.id1 }}">
+                                <input type="hidden" name="id2" value="{{ pair.id2 }}">
+                                <button type="submit" class="text-purple-600 hover:text-purple-800">🔗 Link</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if unlinked_pairs|length > 10 %}
+            <p class="text-xs text-yellow-700 mt-2 px-2">...and {{ unlinked_pairs|length - 10 }} more</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if linked_pairs %}
+    <div class="bg-white rounded-lg overflow-hidden">
+        <div class="p-3 bg-green-100 border-b border-green-200 flex justify-between items-center">
+            <span class="text-green-800 font-medium">✅ {{ linked_pairs|length }} linked pair(s)</span>
+        </div>
+        <div class="max-h-64 overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">From Account</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">To Account</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                        <th class="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for pair in linked_pairs %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-3 py-2">{{ pair.date }}</td>
+                        <td class="px-3 py-2 font-mono text-xs">{{ pair.account1[-8:] }}</td>
+                        <td class="px-3 py-2 font-mono text-xs">{{ pair.account2[-8:] }}</td>
+                        <td class="px-3 py-2 text-right">€{{ "%.2f"|format(pair.amount1|abs) }}</td>
+                        <td class="px-3 py-2 text-center">
+                            <form method="post" action="{{ url_for('accounts.unlink_transfer_pair', transaction_id=pair.id1) }}" class="inline">
+                                <button type="submit" class="text-red-600 hover:text-red-800 text-xs" 
+                                        onclick="return confirm('Unlink this pair?')">
+                                    ⛓️‍💥 Unlink
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    {% if not unlinked_pairs %}
+    <p class="text-sm text-gray-500 italic">No transfer pairs yet. Import statements from multiple accounts (e.g., checking + savings) to see matching transfers.</p>
+    {% endif %}
+    {% endif %}
+</div>
+
+<div class="mt-6 p-4 bg-blue-50 rounded-lg">
+    <h4 class="font-semibold text-blue-800 mb-2">💡 Tip</h4>
+    <p class="text-sm text-blue-700">
+        Use the account dropdown in the header to switch between accounts. 
+        When you select an account, all pages (Dashboard, Transactions, etc.) will show only data for that account.
+    </p>
+</div>
+{% endblock %}

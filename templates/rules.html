@@ -1,0 +1,929 @@
+{% extends "base.html" %}
+{% block title %}Rules - Expense Tracker{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex justify-between items-center">
+    <div>
+        <h2 class="text-3xl font-bold text-gray-800">📏 Categorization Rules</h2>
+        <p class="text-gray-600 mt-1">Auto-assign categories by merchant name (fuzzy) and/or counter account (strict IBAN). Drag to reorder priority.</p>
+    </div>
+    <form method="post" action="{{ url_for('rules.apply_all') }}">
+        <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 shadow-md flex items-center gap-2 transition duration-150 ease-in-out">
+            <span>⚡</span> Apply Rules to All
+        </button>
+    </form>
+</div>
+
+<!-- Add Rule Form -->
+<div class="bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-100">
+    <div class="bg-gray-50 px-6 py-4 border-b border-gray-100">
+        <h3 class="text-lg font-bold text-gray-700 flex items-center gap-2">
+            <span>➕</span> Add New Rule
+        </h3>
+    </div>
+    <div class="p-6">
+        <form method="post" action="{{ url_for('rules.add') }}" id="rule-form" onsubmit="return validateRuleForm()">
+            <div class="flex flex-wrap gap-4 items-end">
+                <!-- Merchant (fuzzy) -->
+                <div class="flex-1 min-w-[250px]">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Merchant <span class="font-normal text-gray-400">(fuzzy)</span></label>
+                    <input type="text" name="pattern" list="merchant-list" id="pattern-input"
+                           value="{{ prefill.pattern or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
+                           placeholder="e.g. Albert Heijn, Shell...">
+                    <datalist id="merchant-list">
+                        {% for m in merchants %}
+                        <option value="{{ m.name }}">{{ m.name }} ({{ m.count }} txns)</option>
+                        {% endfor %}
+                    </datalist>
+                    <p class="text-xs text-gray-400 mt-1">Matches if description <em>contains</em> this text</p>
+                </div>
+                
+                <!-- Counter Account (strict) -->
+                <div class="flex-1 min-w-[250px]">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Counter Account <span class="font-normal text-gray-400">(strict)</span></label>
+                    <input type="hidden" name="counter_account" id="counter-account-input">
+                    <button type="button" onclick="openAccountPicker('add')"
+                            id="add-account-btn"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-500 truncate">
+                        — Any —
+                    </button>
+                    <p class="text-xs text-gray-400 mt-1">Exact IBAN match on counter account</p>
+                </div>
+                
+                <!-- Type -->
+                <div class="w-40">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Type</label>
+                    <select name="transaction_type" id="type-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="">Any</option>
+                        <option value="debit" {% if prefill.transaction_type == 'debit' %}selected{% endif %}>Debit (Expense)</option>
+                        <option value="credit" {% if prefill.transaction_type == 'credit' %}selected{% endif %}>Credit (Income)</option>
+                    </select>
+                </div>
+                
+                <!-- Min € -->
+                <div class="w-28">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Min €</label>
+                    <input type="number" name="min_amount" id="min-amount-input" step="0.01" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                           placeholder="0.00">
+                </div>
+                
+                <!-- Max € -->
+                <div class="w-28">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Max €</label>
+                    <input type="number" name="max_amount" id="max-amount-input" step="0.01" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                           placeholder="999.99">
+                </div>
+                
+                <!-- Category -->
+                <div class="w-56">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Assign Category</label>
+                    <input type="hidden" name="category_id" id="add-category-id" required>
+                    <button type="button" onclick="openRuleCategoryPicker('add')"
+                            id="add-category-btn"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-500 truncate">
+                        Select Category...
+                    </button>
+                </div>
+                
+                <!-- Buttons -->
+                <div class="flex gap-2">
+                    <button type="button" onclick="testRule()" class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-200 border border-gray-300 font-medium transition" title="Preview matching transactions">
+                        🔍 Test
+                    </button>
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 shadow-sm font-medium transition">
+                        Create Rule
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Rules List -->
+<div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+    <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+        <h3 class="text-lg font-bold text-gray-700">📋 Existing Rules <span class="font-normal text-sm text-gray-400">(drag ☰ to reorder priority)</span></h3>
+        <span class="text-sm text-gray-500">{{ rules|length }} rules configured</span>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-2 py-3 w-8"></th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Merchant (fuzzy)</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Counter Account (strict)</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type / Amount</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Assigns To</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Matches</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="rulesBody" class="bg-white divide-y divide-gray-200">
+                {% if rules %}
+                    {% for rule in rules %}
+                    <tr class="hover:bg-gray-50 transition-colors rule-row" data-rule-id="{{ rule.id }}">
+                        <!-- Drag handle -->
+                        <td class="px-2 py-4 text-center cursor-grab drag-handle text-gray-400 hover:text-gray-600" title="Drag to reorder">☰</td>
+                        <!-- Merchant pattern -->
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            {% if rule.pattern %}
+                            <span class="font-medium text-gray-900">%{{ rule.pattern }}%</span>
+                            {% else %}
+                            <span class="text-gray-400 italic">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Counter account -->
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            {% if rule.counter_account %}
+                            <div class="text-sm">
+                                <span class="font-medium text-gray-900">{{ rule.counter_account_name }}</span>
+                                <span class="text-gray-400 text-xs block">{{ rule.counter_account }}</span>
+                            </div>
+                            {% else %}
+                            <span class="text-gray-400 italic">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Type + Amount range -->
+                        <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <div class="flex flex-col gap-0.5">
+                                {% if rule.transaction_type %}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-fit {% if rule.transaction_type == 'debit' %}bg-red-50 text-red-700{% else %}bg-green-50 text-green-700{% endif %}">
+                                    {{ rule.transaction_type|capitalize }}
+                                </span>
+                                {% endif %}
+                                {% if rule.min_amount or rule.max_amount %}
+                                    {% if rule.min_amount and rule.max_amount %}
+                                    <span>€{{ '{:,.2f}'.format(rule.min_amount) }} – €{{ '{:,.2f}'.format(rule.max_amount) }}</span>
+                                    {% elif rule.min_amount %}
+                                    <span>≥ €{{ '{:,.2f}'.format(rule.min_amount) }}</span>
+                                    {% else %}
+                                    <span>≤ €{{ '{:,.2f}'.format(rule.max_amount) }}</span>
+                                    {% endif %}
+                                {% elif not rule.transaction_type %}
+                                    <span class="text-gray-400 italic">Any</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <!-- Category -->
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {{ rule.category_name }}
+                            </span>
+                        </td>
+                        <!-- Match counts -->
+                        <td class="px-4 py-4 text-center">
+                            <div class="flex flex-col items-center">
+                                <span class="text-sm font-semibold text-gray-700">{{ rule.match_total }}</span>
+                                {% if rule.match_uncategorized > 0 %}
+                                <span class="text-xs text-amber-600">{{ rule.match_uncategorized }} pending</span>
+                                {% else %}
+                                <span class="text-xs text-gray-400">all done</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <!-- Status -->
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            {% if rule.active %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <!-- Actions -->
+                        <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick='openEditModal({{ rule.id }}, {{ rule.pattern|tojson }}, {{ rule.counter_account|tojson }}, "{{ rule.category_id }}", {{ rule.active }}, {{ rule.min_amount|tojson }}, {{ rule.max_amount|tojson }}, "{{ rule.transaction_type|default("", true) }}")' 
+                                    class="text-indigo-600 hover:text-indigo-900 mr-3 font-semibold">Edit</button>
+                            <form method="post" action="{{ url_for('rules.delete', rule_id=rule.id) }}" onsubmit="return confirm('Delete this rule?');" class="inline">
+                                <button type="submit" class="text-red-600 hover:text-red-900 font-semibold">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-10 text-center text-gray-500">
+                            <p class="text-lg">No rules defined yet.</p>
+                            <p class="text-sm mt-1">Add a rule above to automatically categorize your transactions.</p>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center backdrop-blur-sm">
+    <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform transition-all">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-800">Edit Rule</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        
+        <div class="p-6">
+            <form id="editForm" method="post" action="">
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Merchant Pattern <span class="font-normal text-gray-400">(fuzzy)</span></label>
+                    <input type="text" id="editPattern" name="pattern" list="merchant-list"
+                           class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           placeholder="e.g. Albert Heijn">
+                    <p class="text-xs text-gray-500 mt-1">Fuzzy match on description. Leave empty to match any merchant.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Counter Account <span class="font-normal text-gray-400">(strict IBAN)</span></label>
+                    <input type="hidden" id="editCounterAccount" name="counter_account">
+                    <button type="button" onclick="openAccountPicker('edit')"
+                            id="edit-account-btn"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-700 truncate">
+                        — Any —
+                    </button>
+                    <p class="text-xs text-gray-500 mt-1">Exact IBAN match. Leave empty to match any counter account.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Transaction Type</label>
+                    <select id="editTransactionType" name="transaction_type" class="shadow-sm border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="">Any</option>
+                        <option value="debit">Debit (Expense)</option>
+                        <option value="credit">Credit (Income)</option>
+                    </select>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Assign Category</label>
+                    <input type="hidden" id="editCategory" name="category_id" required>
+                    <button type="button" onclick="openRuleCategoryPicker('edit')"
+                            id="edit-category-btn"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-700 truncate">
+                        Select Category...
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Min Amount (€)</label>
+                        <input type="number" id="editMinAmount" name="min_amount" step="0.01" 
+                               class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Optional">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Max Amount (€)</label>
+                        <input type="number" id="editMaxAmount" name="max_amount" step="0.01" 
+                               class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
+                               placeholder="Optional">
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="flex items-center cursor-pointer">
+                        <div class="relative">
+                            <input type="checkbox" id="editActive" name="active" class="sr-only">
+                            <div class="block bg-gray-200 w-10 h-6 rounded-full"></div>
+                            <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+                        </div>
+                        <div class="ml-3 text-gray-700 font-medium">Rule Active</div>
+                    </label>
+                </div>
+                
+                <!-- Edit conflict panel -->
+                <div id="editConflictPanel" class="hidden mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                    <div class="font-semibold text-amber-800 mb-1 text-sm">⚠️ Potential Conflicts</div>
+                    <div id="editConflictContent" class="text-xs text-amber-700"></div>
+                </div>
+                
+                <div class="flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium focus:outline-none transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm focus:outline-none transition-colors">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Test Results Modal -->
+<div id="testModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center backdrop-blur-sm">
+    <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform transition-all">
+        <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-gray-800">🔍 Rule Test Results</h3>
+            <button onclick="closeTestModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div class="p-6" id="testModalContent">
+            <p class="text-gray-500">Loading...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Account Picker Modal -->
+<div id="accountPickerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[60]">
+    <div class="bg-white rounded-lg shadow-xl w-[550px] max-w-[95vw] max-h-[85vh] flex flex-col mx-4">
+        <div class="flex justify-between items-center p-4 border-b">
+            <div>
+                <h3 class="text-lg font-bold">🏦 Select Counter Account</h3>
+                <p class="text-sm text-gray-500">Search by name or IBAN</p>
+            </div>
+            <button onclick="closeAccountPicker()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div class="p-4 border-b">
+            <input type="text" id="accountSearch"
+                   placeholder="🔍 Type to search accounts..."
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                   oninput="filterAccounts()">
+        </div>
+        <div class="flex-1 overflow-y-auto" id="accountListContainer">
+            <div class="p-2">
+                <div class="account-option px-3 py-2 hover:bg-blue-50 cursor-pointer rounded-lg border-b border-gray-100"
+                     data-iban="" data-search="any">
+                    <span class="text-gray-500 italic">— Any (no filter) —</span>
+                </div>
+                {% for ca in counter_accounts %}
+                <div class="account-option px-3 py-2 hover:bg-blue-50 cursor-pointer rounded-lg border-b border-gray-100"
+                     data-iban="{{ ca.iban }}" data-search="{{ ca.name|lower }} {{ ca.iban|lower }}">
+                    <div class="font-medium text-gray-900">{{ ca.name }}</div>
+                    <div class="text-xs text-gray-500 flex justify-between">
+                        <span class="font-mono">{{ ca.iban }}</span>
+                        <span>{{ ca.count }} txns</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div id="accountNoResults" class="hidden text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">🔍</div>
+                <div>No accounts found</div>
+            </div>
+        </div>
+        <div class="border-t p-4 flex justify-end bg-gray-50">
+            <button onclick="closeAccountPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Category Picker Modal -->
+<div id="ruleCategoryPickerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-[60]">
+    <div class="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col mx-4">
+        <div class="flex justify-between items-center p-4 border-b">
+            <div>
+                <h3 class="text-lg font-bold">🏷️ Select Category</h3>
+                <p class="text-sm text-gray-500">Choose a category to assign to this rule</p>
+            </div>
+            <button onclick="closeRuleCategoryPicker()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div class="p-4 border-b">
+            <input type="text" id="ruleCategorySearch"
+                   placeholder="🔍 Type to search categories..."
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                   oninput="filterRuleCategories()">
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="ruleCategoryTreeContainer">
+            <div id="ruleCategoryTreeContent"></div>
+            <div id="ruleNoResults" class="hidden text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">🔍</div>
+                <div>No categories found</div>
+            </div>
+        </div>
+        <div class="border-t p-4 flex justify-end bg-gray-50">
+            <button onclick="closeRuleCategoryPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<style>
+input:checked ~ .block { background-color: #10B981; }
+input:checked ~ .dot { transform: translateX(100%); }
+.rule-row.dragging { opacity: 0.4; background: #EEF2FF; }
+.rule-row.drag-over { border-top: 2px solid #4F46E5; }
+.drag-handle:active { cursor: grabbing; }
+</style>
+
+<script>
+// ===== Category Tree Data =====
+const categoryTreeData = {{ category_tree | tojson | safe }};
+const categoryLookup = {};  // id -> {name, fullPath}
+
+function buildCategoryLookup(nodes) {
+    for (const node of nodes) {
+        categoryLookup[node.id] = { name: node.name, fullPath: node.fullPath };
+        if (node.children) buildCategoryLookup(node.children);
+    }
+}
+buildCategoryLookup(categoryTreeData);
+
+// ===== Rule Category Picker =====
+let ruleCategoryPickerTarget = null;  // 'add' or 'edit'
+
+function renderRuleCategoryNode(node, depth) {
+    const bgColors = ['bg-gray-100', 'bg-gray-50', 'bg-white', 'bg-white'];
+    const textClasses = ['font-bold text-gray-800', 'font-medium text-gray-700', 'text-gray-600', 'text-gray-500 text-sm'];
+    const safeDepth = Math.min(depth, 3);
+    const paddingLeft = 12 + depth * 16;
+    const hasChildren = node.children && node.children.length > 0;
+    const icon = hasChildren ? '📂' : '<span class="text-gray-400">•</span>';
+    const roundedClass = depth === 0 ? 'rounded-t-lg' : '';
+
+    let html = `<div class="rule-category-node" data-name="${node.name.toLowerCase()}" data-depth="${depth}">
+        <div class="py-1.5 px-3 ${bgColors[safeDepth]} flex items-center gap-2 hover:bg-blue-100 cursor-pointer rule-category-option ${roundedClass}"
+             style="padding-left: ${paddingLeft}px;" data-id="${node.id}" data-path="${node.fullPath}">
+            ${icon} <span class="${textClasses[safeDepth]}">${node.name}</span>
+        </div>`;
+    if (hasChildren) {
+        html += `<div class="border-l-2 border-gray-200 ml-4">${node.children.map(c => renderRuleCategoryNode(c, depth + 1)).join('')}</div>`;
+    }
+    return html + '</div>';
+}
+
+function renderRuleCategoryTree() {
+    const container = document.getElementById('ruleCategoryTreeContent');
+    if (!container || !categoryTreeData) return;
+    container.innerHTML = categoryTreeData.map(node =>
+        `<div class="rule-category-main mb-3" data-name="${node.name.toLowerCase()}">${renderRuleCategoryNode(node, 0)}</div>`
+    ).join('');
+
+    container.querySelectorAll('.rule-category-option').forEach(el => {
+        el.addEventListener('click', () => {
+            const catId = el.dataset.id;
+            const catPath = el.dataset.path;
+            if (catId) selectRuleCategory(catId, catPath);
+        });
+    });
+}
+
+function openRuleCategoryPicker(target) {
+    ruleCategoryPickerTarget = target;
+    renderRuleCategoryTree();
+    document.getElementById('ruleCategorySearch').value = '';
+    document.getElementById('ruleCategoryPickerModal').classList.remove('hidden');
+    document.getElementById('ruleCategoryPickerModal').classList.add('flex');
+    document.getElementById('ruleCategorySearch').focus();
+}
+
+function closeRuleCategoryPicker() {
+    document.getElementById('ruleCategoryPickerModal').classList.add('hidden');
+    document.getElementById('ruleCategoryPickerModal').classList.remove('flex');
+    ruleCategoryPickerTarget = null;
+}
+
+function filterRuleCategories() {
+    const search = document.getElementById('ruleCategorySearch').value.toLowerCase().trim();
+    const container = document.getElementById('ruleCategoryTreeContent');
+    let anyVisible = false;
+
+    function checkVisibility(node) {
+        const name = node.dataset.name || '';
+        const children = node.querySelectorAll(':scope > .border-l-2 > .rule-category-node');
+        let childrenVisible = false;
+        children.forEach(child => { if (checkVisibility(child)) childrenVisible = true; });
+        const selfMatches = !search || name.includes(search);
+        const visible = selfMatches || childrenVisible;
+        node.style.display = visible ? '' : 'none';
+        if (visible) anyVisible = true;
+        return visible;
+    }
+
+    container.querySelectorAll(':scope > .rule-category-main').forEach(main => {
+        const mainNode = main.querySelector(':scope > .rule-category-node');
+        if (mainNode) { const visible = checkVisibility(mainNode); main.style.display = visible ? '' : 'none'; }
+    });
+    document.getElementById('ruleNoResults').style.display = anyVisible ? 'none' : 'block';
+}
+
+function selectRuleCategory(catId, catPath) {
+    if (ruleCategoryPickerTarget === 'add') {
+        document.getElementById('add-category-id').value = catId;
+        const btn = document.getElementById('add-category-btn');
+        btn.textContent = catPath;
+        btn.classList.remove('text-gray-500');
+        btn.classList.add('text-gray-900', 'font-medium');
+    } else if (ruleCategoryPickerTarget === 'edit') {
+        document.getElementById('editCategory').value = catId;
+        const btn = document.getElementById('edit-category-btn');
+        btn.textContent = catPath;
+        btn.classList.remove('text-gray-500');
+        btn.classList.add('text-gray-900', 'font-medium');
+    }
+    closeRuleCategoryPicker();
+}
+
+// Close picker on Escape or backdrop click
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeRuleCategoryPicker(); closeAccountPicker(); } });
+document.getElementById('ruleCategoryPickerModal')?.addEventListener('click', e => {
+    if (e.target.id === 'ruleCategoryPickerModal') closeRuleCategoryPicker();
+});
+
+// ===== Account Picker =====
+let accountPickerTarget = null;  // 'add' or 'edit'
+const accountLookup = {};
+{% for ca in counter_accounts %}
+accountLookup['{{ ca.iban }}'] = '{{ ca.name }} ({{ ca.iban }})';
+{% endfor %}
+
+function openAccountPicker(target) {
+    accountPickerTarget = target;
+    document.getElementById('accountSearch').value = '';
+    filterAccounts();
+    document.getElementById('accountPickerModal').classList.remove('hidden');
+    document.getElementById('accountPickerModal').classList.add('flex');
+    document.getElementById('accountSearch').focus();
+}
+
+function closeAccountPicker() {
+    document.getElementById('accountPickerModal').classList.add('hidden');
+    document.getElementById('accountPickerModal').classList.remove('flex');
+    accountPickerTarget = null;
+}
+
+function filterAccounts() {
+    const search = document.getElementById('accountSearch').value.toLowerCase().trim();
+    const options = document.querySelectorAll('#accountListContainer .account-option');
+    let anyVisible = false;
+    options.forEach(opt => {
+        const searchText = opt.dataset.search || '';
+        const visible = !search || searchText.includes(search);
+        opt.style.display = visible ? '' : 'none';
+        if (visible) anyVisible = true;
+    });
+    document.getElementById('accountNoResults').style.display = anyVisible ? 'none' : 'block';
+}
+
+document.querySelectorAll('#accountListContainer .account-option').forEach(el => {
+    el.addEventListener('click', () => {
+        const iban = el.dataset.iban;
+        selectAccount(iban);
+    });
+});
+
+function selectAccount(iban) {
+    if (accountPickerTarget === 'add') {
+        document.getElementById('counter-account-input').value = iban;
+        const btn = document.getElementById('add-account-btn');
+        if (iban) {
+            btn.textContent = accountLookup[iban] || iban;
+            btn.classList.remove('text-gray-500');
+            btn.classList.add('text-gray-900', 'font-medium');
+        } else {
+            btn.textContent = '— Any —';
+            btn.classList.add('text-gray-500');
+            btn.classList.remove('text-gray-900', 'font-medium');
+        }
+    } else if (accountPickerTarget === 'edit') {
+        document.getElementById('editCounterAccount').value = iban;
+        const btn = document.getElementById('edit-account-btn');
+        if (iban) {
+            btn.textContent = accountLookup[iban] || iban;
+            btn.classList.remove('text-gray-500');
+            btn.classList.add('text-gray-900', 'font-medium');
+        } else {
+            btn.textContent = '— Any —';
+            btn.classList.add('text-gray-500');
+            btn.classList.remove('text-gray-900', 'font-medium');
+        }
+    }
+    closeAccountPicker();
+}
+
+document.getElementById('accountPickerModal')?.addEventListener('click', e => {
+    if (e.target.id === 'accountPickerModal') closeAccountPicker();
+});
+
+// ===== Validation =====
+function validateRuleForm() {
+    const pattern = document.getElementById('pattern-input').value.trim();
+    const counterAccount = document.getElementById('counter-account-input').value.trim();
+    if (!pattern && !counterAccount) {
+        alert('Please provide at least a Merchant pattern or a Counter Account.');
+        return false;
+    }
+    const categoryId = document.getElementById('add-category-id').value;
+    if (!categoryId) {
+        alert('Please select a category.');
+        return false;
+    }
+    return true;
+}
+
+// ===== Collect form data =====
+function getFormCriteria() {
+    return {
+        pattern: document.getElementById('pattern-input').value.trim(),
+        counter_account: document.getElementById('counter-account-input').value.trim(),
+        transaction_type: document.getElementById('type-input').value,
+        min_amount: document.getElementById('min-amount-input').value || null,
+        max_amount: document.getElementById('max-amount-input').value || null
+    };
+}
+
+// ===== Test Rule =====
+async function testRule() {
+    const criteria = getFormCriteria();
+    if (!criteria.pattern && !criteria.counter_account) {
+        alert('Enter a merchant pattern or select a counter account first.');
+        return;
+    }
+    
+    document.getElementById('testModal').classList.remove('hidden');
+    document.getElementById('testModalContent').innerHTML = '<p class="text-gray-500 text-center py-4">⏳ Testing rule...</p>';
+    
+    try {
+        const [testResp, conflictResp] = await Promise.all([
+            fetch('/api/rules/test', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(criteria) }),
+            fetch('/api/rules/conflicts', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(criteria) })
+        ]);
+        
+        const testData = await testResp.json();
+        const conflictData = await conflictResp.json();
+        
+        let html = `
+            <div class="flex gap-6 mb-4">
+                <div class="bg-blue-50 rounded-lg px-4 py-3 flex-1 text-center">
+                    <div class="text-2xl font-bold text-blue-700">${testData.total}</div>
+                    <div class="text-xs text-blue-600">Total matches</div>
+                </div>
+                <div class="bg-amber-50 rounded-lg px-4 py-3 flex-1 text-center">
+                    <div class="text-2xl font-bold text-amber-700">${testData.uncategorized}</div>
+                    <div class="text-xs text-amber-600">Uncategorized</div>
+                </div>
+            </div>`;
+        
+        if (testData.samples && testData.samples.length > 0) {
+            html += `<div class="text-sm font-semibold text-gray-700 mb-2">Sample transactions:</div>
+            <div class="overflow-x-auto rounded-lg border">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Counter Acct</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Amount</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Category</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">`;
+            
+            for (const s of testData.samples) {
+                const isUncat = s.category_name === 'Uncategorized';
+                html += `<tr class="${isUncat ? 'bg-amber-50' : ''}">
+                    <td class="px-3 py-1.5 whitespace-nowrap">${s.date}</td>
+                    <td class="px-3 py-1.5" title="${(s.description||'').replace(/"/g, '&quot;')}">${(s.description||'-').substring(0, 40)}</td>
+                    <td class="px-3 py-1.5 text-gray-500 text-xs">${s.counter_account || '-'}</td>
+                    <td class="px-3 py-1.5 text-right font-medium ${s.direction === 'credit' ? 'text-green-600' : 'text-red-600'}">€${Number(s.amount).toFixed(2)}</td>
+                    <td class="px-3 py-1.5"><span class="${isUncat ? 'text-amber-600 font-medium' : 'text-gray-500'}">${s.category_name}</span></td>
+                </tr>`;
+            }
+            html += '</tbody></table></div>';
+            if (testData.total > testData.samples.length) {
+                html += `<p class="text-xs text-gray-400 mt-2 text-center">Showing ${testData.samples.length} of ${testData.total} matches</p>`;
+            }
+        } else {
+            html += '<p class="text-center text-gray-500 py-4">No transactions match this rule criteria.</p>';
+        }
+        
+        // Conflicts section
+        if (conflictData.conflicts && conflictData.conflicts.length > 0) {
+            html += `<div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div class="font-semibold text-amber-800 mb-2">⚠️ Overlapping rules (${conflictData.conflicts.length}):</div>
+                <ul class="text-sm text-amber-700 space-y-1">`;
+            for (const c of conflictData.conflicts) {
+                const parts = [];
+                if (c.pattern) parts.push(`%${c.pattern}%`);
+                if (c.counter_account) parts.push(c.counter_account);
+                html += `<li>Rule #${c.id}: <strong>${parts.join(' + ') || 'any'}</strong> → <span class="text-blue-700">${c.category_name}</span></li>`;
+            }
+            html += '</ul></div>';
+        }
+        
+        document.getElementById('testModalContent').innerHTML = html;
+        
+    } catch (err) {
+        document.getElementById('testModalContent').innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
+    }
+}
+
+function closeTestModal() {
+    document.getElementById('testModal').classList.add('hidden');
+}
+document.getElementById('testModal').addEventListener('click', function(e) {
+    if (e.target === this) closeTestModal();
+});
+
+// ===== Edit Modal =====
+let currentEditRuleId = null;
+
+function openEditModal(id, pattern, counterAccount, categoryId, active, minAmount, maxAmount, transactionType) {
+    currentEditRuleId = id;
+    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editForm').action = `/rules/edit/${id}`;
+    document.getElementById('editPattern').value = pattern || '';
+    document.getElementById('editCounterAccount').value = counterAccount || '';
+    // Set the account picker button text
+    const editAccBtn = document.getElementById('edit-account-btn');
+    if (counterAccount && accountLookup[counterAccount]) {
+        editAccBtn.textContent = accountLookup[counterAccount];
+        editAccBtn.classList.remove('text-gray-500');
+        editAccBtn.classList.add('text-gray-900', 'font-medium');
+    } else if (counterAccount) {
+        editAccBtn.textContent = counterAccount;
+        editAccBtn.classList.remove('text-gray-500');
+        editAccBtn.classList.add('text-gray-900', 'font-medium');
+    } else {
+        editAccBtn.textContent = '— Any —';
+        editAccBtn.classList.add('text-gray-500');
+        editAccBtn.classList.remove('text-gray-900', 'font-medium');
+    }
+    document.getElementById('editTransactionType').value = transactionType || '';
+    document.getElementById('editCategory').value = categoryId;
+    // Set the category picker button text
+    const catInfo = categoryLookup[parseInt(categoryId)];
+    const editCatBtn = document.getElementById('edit-category-btn');
+    if (catInfo) {
+        editCatBtn.textContent = catInfo.fullPath;
+        editCatBtn.classList.remove('text-gray-500');
+        editCatBtn.classList.add('text-gray-900', 'font-medium');
+    } else {
+        editCatBtn.textContent = 'Select Category...';
+        editCatBtn.classList.add('text-gray-500');
+        editCatBtn.classList.remove('text-gray-900', 'font-medium');
+    }
+    document.getElementById('editActive').checked = active == 1;
+    document.getElementById('editMinAmount').value = minAmount !== null ? minAmount : '';
+    document.getElementById('editMaxAmount').value = maxAmount !== null ? maxAmount : '';
+    document.getElementById('editConflictPanel').classList.add('hidden');
+    
+    checkEditConflicts();
+}
+
+async function checkEditConflicts() {
+    const criteria = {
+        pattern: document.getElementById('editPattern').value.trim(),
+        counter_account: document.getElementById('editCounterAccount').value.trim(),
+        transaction_type: document.getElementById('editTransactionType').value,
+        min_amount: document.getElementById('editMinAmount').value || null,
+        max_amount: document.getElementById('editMaxAmount').value || null,
+        exclude_rule_id: currentEditRuleId
+    };
+    
+    if (!criteria.pattern && !criteria.counter_account) return;
+    
+    try {
+        const resp = await fetch('/api/rules/conflicts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(criteria)
+        });
+        const data = await resp.json();
+        
+        if (data.conflicts && data.conflicts.length > 0) {
+            let html = '<ul class="space-y-0.5">';
+            for (const c of data.conflicts) {
+                const parts = [];
+                if (c.pattern) parts.push(`%${c.pattern}%`);
+                if (c.counter_account) parts.push(c.counter_account);
+                html += `<li>Rule #${c.id}: <strong>${parts.join(' + ') || 'any'}</strong> → ${c.category_name}</li>`;
+            }
+            html += '</ul>';
+            document.getElementById('editConflictContent').innerHTML = html;
+            document.getElementById('editConflictPanel').classList.remove('hidden');
+        }
+    } catch(e) { /* silent */ }
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+    currentEditRuleId = null;
+}
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+
+// ===== Drag & Drop Reordering =====
+let dragRow = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('rulesBody');
+    if (!tbody) return;
+    
+    tbody.addEventListener('dragstart', handleDragStart);
+    tbody.addEventListener('dragover', handleDragOver);
+    tbody.addEventListener('dragleave', handleDragLeave);
+    tbody.addEventListener('drop', handleDrop);
+    tbody.addEventListener('dragend', handleDragEnd);
+    
+    // Make rows draggable only by their handle
+    for (const handle of tbody.querySelectorAll('.drag-handle')) {
+        const row = handle.closest('tr');
+        handle.addEventListener('mousedown', () => row.setAttribute('draggable', 'true'));
+        handle.addEventListener('mouseup', () => row.removeAttribute('draggable'));
+    }
+});
+
+function handleDragStart(e) {
+    dragRow = e.target.closest('tr.rule-row');
+    if (!dragRow) { e.preventDefault(); return; }
+    dragRow.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragRow.dataset.ruleId);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('tr.rule-row');
+    if (target && target !== dragRow) {
+        document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        target.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    const target = e.target.closest('tr.rule-row');
+    if (target) target.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const target = e.target.closest('tr.rule-row');
+    if (!target || !dragRow || target === dragRow) return;
+    
+    target.classList.remove('drag-over');
+    
+    const tbody = document.getElementById('rulesBody');
+    const rows = [...tbody.querySelectorAll('tr.rule-row')];
+    const dragIdx = rows.indexOf(dragRow);
+    const dropIdx = rows.indexOf(target);
+    
+    if (dragIdx < dropIdx) {
+        target.parentNode.insertBefore(dragRow, target.nextSibling);
+    } else {
+        target.parentNode.insertBefore(dragRow, target);
+    }
+    
+    saveRuleOrder();
+}
+
+function handleDragEnd() {
+    if (dragRow) {
+        dragRow.classList.remove('dragging');
+        dragRow.removeAttribute('draggable');
+    }
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    dragRow = null;
+}
+
+async function saveRuleOrder() {
+    const rows = document.querySelectorAll('#rulesBody tr.rule-row');
+    const ruleIds = [...rows].map(r => parseInt(r.dataset.ruleId));
+    
+    try {
+        const resp = await fetch('/api/rules/reorder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rule_ids: ruleIds })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            showToast('Priority order saved');
+        } else {
+            showToast('Reorder failed: ' + (data.error || 'unknown'), 'error');
+        }
+    } catch(e) {
+        showToast('Reorder error', 'error');
+    }
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${type === 'error' ? 'bg-red-500' : 'bg-green-500'} text-white transition-opacity duration-300`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => { toast.style.opacity = '1'; });
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
+}
+
+// ===== Prefill focus =====
+document.addEventListener('DOMContentLoaded', function() {
+    const patternInput = document.getElementById('pattern-input');
+    if (patternInput && patternInput.value) {
+        patternInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        patternInput.focus();
+    }
+});
+</script>
+{% endblock %}

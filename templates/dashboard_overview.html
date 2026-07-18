@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Overzicht{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">📊 Dashboard Overzicht</h2>
+
+    {% include "partials/dashboard_time_selector.html" %}
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <!-- Income -->
+        <div class="bg-white rounded-lg shadow p-5">
+            <div class="text-sm font-medium text-gray-500 mb-1">Inkomsten</div>
+            <div id="kpiIncome" class="text-2xl font-bold text-green-600">—</div>
+        </div>
+        <!-- Expenses -->
+        <div class="bg-white rounded-lg shadow p-5">
+            <div class="text-sm font-medium text-gray-500 mb-1">Uitgaven</div>
+            <div id="kpiExpenses" class="text-2xl font-bold text-red-600">—</div>
+        </div>
+        <!-- Net -->
+        <div class="bg-white rounded-lg shadow p-5">
+            <div class="text-sm font-medium text-gray-500 mb-1">Netto</div>
+            <div id="kpiNet" class="text-2xl font-bold text-blue-600">—</div>
+        </div>
+        <!-- Savings -->
+        <div class="bg-white rounded-lg shadow p-5">
+            <div class="text-sm font-medium text-gray-500 mb-1">Netto Sparen</div>
+            <div id="kpiSavings" class="text-2xl font-bold text-purple-600">—</div>
+            <div id="kpiSavingsDetail" class="text-xs text-gray-400 mt-1"></div>
+        </div>
+    </div>
+
+    <!-- Monthly Trend Chart (full width) -->
+    <div class="bg-white rounded-lg shadow p-5 mb-6">
+        <h3 class="text-lg font-semibold text-gray-700 mb-3">Maandelijks Overzicht</h3>
+        <div id="monthlyTrendChart" style="min-height: 350px;"></div>
+        <div id="monthlyTrendEmpty" class="hidden text-center text-gray-400 py-16">
+            Geen data voor deze periode
+        </div>
+    </div>
+
+    <!-- Bottom row: Savings Flow + Category Donut -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Savings Flow Chart -->
+        <div class="bg-white rounded-lg shadow p-5">
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">Spaargeld Flow</h3>
+            <div id="savingsFlowChart" style="min-height: 300px;"></div>
+            <div id="savingsFlowEmpty" class="hidden text-center text-gray-400 py-16">
+                Geen spaardata voor deze periode
+            </div>
+        </div>
+
+        <!-- Expense Category Donut -->
+        <div class="bg-white rounded-lg shadow p-5">
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">Uitgaven per Categorie</h3>
+            <div id="categoryDonutChart" style="min-height: 300px;"></div>
+            <div id="categoryDonutEmpty" class="hidden text-center text-gray-400 py-16">
+                Geen uitgaven voor deze periode
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        initDashboard('overview');
+    });
+</script>
+{% endblock %}

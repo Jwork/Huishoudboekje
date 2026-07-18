@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:15
+    container_name: expenses-db
+    ports:
+      - "5433:5432"
+    volumes:
+      - expenses_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    environment:
+      - POSTGRES_USER=expenses
+      - POSTGRES_PASSWORD=expenses_secure_password
+      - POSTGRES_DB=expenses
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U expenses -d expenses"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  web:
+    build: .
+    container_name: expenses-web
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - ./uploads:/app/uploads
+      - ./debug:/app/debug
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=${SECRET_KEY:-change_this_in_production}
+      - DATABASE_URL=postgresql://expenses:expenses_secure_password@db:5432/expenses
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  expenses_data:

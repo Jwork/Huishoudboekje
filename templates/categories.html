@@ -1,0 +1,109 @@
+```
+{% extends "base.html" %}
+{% block title %}Categories - Expense Tracker{% endblock %}
+
+{# Recursive macro for rendering category tree at any depth #}
+{% macro render_category(cat, depth=0) %}
+{% set indent_colors = ['bg-white border', 'bg-gray-50', 'bg-gray-100', 'bg-gray-200'] %}
+{% set text_sizes = ['text-lg font-bold', 'font-medium text-gray-700', 'text-gray-600 text-sm', 'text-gray-500 text-xs'] %}
+{% set delete_colors = ['text-red-500 hover:text-red-700', 'text-red-400 hover:text-red-600', 'text-red-300 hover:text-red-500', 'text-red-300 hover:text-red-500'] %}
+{% set safe_depth = [depth, 3]|min %}
+
+<div id="category-node-{{ cat.id }}" data-depth="{{ depth }}" class="{{ indent_colors[safe_depth] }} rounded-lg p-{{ 4 - safe_depth if safe_depth < 3 else 2 }} {% if depth > 0 %}mt-2{% endif %}">
+    <div class="flex items-center justify-between {% if cat.children %}mb-2{% endif %}">
+        <div class="flex items-center gap-2 {{ text_sizes[safe_depth] }} category-title-area">
+            {% if cat.children %}
+            <button type="button" class="text-gray-600 hover:text-gray-800 text-lg leading-none expand-toggle w-6 toggle-btn" data-cat-id="{{ cat.id }}" title="Toggle">▼</button>
+            {% else %}
+            <span class="w-6"></span>
+            {% endif %}
+            <span class="category-icon">{% if cat.icon %}{{ cat.icon }}{% elif cat.children %}📁{% else %}📄{% endif %}</span>
+            <span class="category-name cursor-pointer hover:text-blue-600" data-cat-id="{{ cat.id }}" title="Double-click to rename" ondblclick="startRename({{ cat.id }}, this)">{{ cat.name }}</span>
+            {% if cat.children %}<span class="text-xs text-gray-400 font-normal child-count">({{ cat.children|length }})</span>{% endif %}
+            <button type="button" onclick="setupAddSubcategory({{ cat.id }}, this.getAttribute('data-name'))" data-name="{{ cat.name|e }}"
+                    class="text-blue-500 hover:text-blue-700 ml-2 text-xs opacity-50 hover:opacity-100 transition-opacity" title="Add Subcategory">
+                ➕
+            </button>
+        </div>
+        <form method="post" action="{{ url_for('categories.delete_category', category_id=cat.id) }}" 
+              onsubmit="return confirm('⚠️ Delete \&quot;{{ cat.name }}\\&quot;?{% if cat.children %}\n\nThis will also delete ALL {{ cat.children|length }} subcategories!{% endif %}');">
+            <button type="submit" class="{{ delete_colors[safe_depth] }} text-xs px-2 py-0.5 hover:bg-red-50 rounded" title="Delete">
+                🗑️{% if depth == 0 %} Delete{% endif %}
+            </button>
+        </form>
+    </div>
+    {# We include the container even if empty (but hidden via logic if needed) or just if children exist #} 
+    {# If we add a child dynamically, we need this container. My JS creates it if missing. #}
+    {% if cat.children %}
+    <div id="category-children-{{ cat.id }}" class="category-children ml-4 space-y-1">
+        {% for child in cat.children %}
+            {{ render_category(child, depth + 1) }}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% block content %}
+<style>
+    .category-children.collapsed {
+        display: none;
+    }
+    .expand-toggle {
+        display: inline-block;
+        transition: transform 0.2s ease;
+    }
+</style>
+
+<div class="mb-6">
+    <h2 class="text-3xl font-bold mb-4">🏷️ Categories</h2>
+</div>
+
+<!-- Add Category Form -->
+<div class="bg-white rounded-lg p-6 shadow-lg mb-6">
+    <h3 class="text-lg font-bold mb-3">➕ Add Category</h3>
+    <form id="addCategoryForm" method="post" action="{{ url_for('categories.add_category') }}" class="flex flex-wrap gap-4 items-end">
+        <div class="flex-1 min-w-48">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+            <input id="categoryNameInput" type="text" name="name" required class="w-full px-4 py-2 border rounded-lg" placeholder="e.g. Groceries">
+        </div>
+        <div class="w-24">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+            <input id="categoryIconInput" type="text" name="icon" class="w-full px-4 py-2 border rounded-lg text-center" placeholder="e.g. 🍔">
+        </div>
+        <div class="w-64">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Parent Category</label>
+            <select id="parentSelect" name="parent_id" class="w-full px-4 py-2 border rounded-lg">
+                <option value="">None (Top Level)</option>
+                {% for cat in flat_categories %}
+                <option value="{{ cat.id }}">{{ '—' * cat.depth }} {{ cat.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+            Add
+        </button>
+    </form>
+</div>
+
+<!-- Category Tree -->
+<div class="bg-white rounded-lg p-6 shadow-lg">
+    <h3 class="text-xl font-bold mb-4">📂 Category Structure</h3>
+    {% if categories %}
+    <div id="category-tree-root" class="space-y-4">
+        {% for cat in categories %}
+            {{ render_category(cat, 0) }}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div id="category-tree-root" class="space-y-4">
+        <!-- Empty container for JS to append to -->
+        <p class="text-gray-500 text-center">No categories yet. Add one above to get started.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- JS for interactive adding -->
+<script src="{{ url_for('static', filename='js/categories.js') }}"></script>
+{% endblock %}
+```

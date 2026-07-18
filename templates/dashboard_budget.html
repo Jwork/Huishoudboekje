@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Begrotingsoverzicht{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <h2 class="text-2xl font-bold text-gray-800 mb-4">📋 Begrotingsoverzicht</h2>
+
+    {% include "partials/dashboard_time_selector.html" %}
+
+    <div id="budgetLoading" class="text-center text-gray-400 py-16">Laden...</div>
+    <div id="budgetContent" class="hidden">
+
+        <!-- Income Section -->
+        <div class="bg-white rounded-lg shadow mb-6 overflow-hidden">
+            <div class="bg-green-600 text-white px-5 py-3">
+                <h3 class="text-lg font-bold">Inkomsten</h3>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="bg-green-50 border-b">
+                    <tr>
+                        <th class="text-left px-5 py-2 font-medium text-gray-600 w-1/2"></th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Totaal</th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Gem./maand</th>
+                    </tr>
+                </thead>
+                <tbody id="incomeBody"></tbody>
+                <tfoot>
+                    <tr class="bg-green-50 border-t-2 border-green-200 font-bold">
+                        <td class="px-5 py-3 text-green-800">TOTAAL INKOMSTEN</td>
+                        <td id="totalIncome" class="text-right px-5 py-3 text-green-800"></td>
+                        <td id="totalIncomeMonthly" class="text-right px-5 py-3 text-green-700"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Expenses Section -->
+        <div class="bg-white rounded-lg shadow mb-6 overflow-hidden">
+            <div class="bg-red-600 text-white px-5 py-3">
+                <h3 class="text-lg font-bold">Uitgaven</h3>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="bg-red-50 border-b">
+                    <tr>
+                        <th class="text-left px-5 py-2 font-medium text-gray-600 w-1/2"></th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Totaal</th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Gem./maand</th>
+                    </tr>
+                </thead>
+                <tbody id="expenseBody"></tbody>
+                <tfoot>
+                    <tr class="bg-red-50 border-t-2 border-red-200 font-bold">
+                        <td class="px-5 py-3 text-red-800">TOTAAL UITGAVEN</td>
+                        <td id="totalExpenses" class="text-right px-5 py-3 text-red-800"></td>
+                        <td id="totalExpensesMonthly" class="text-right px-5 py-3 text-red-700"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Totals Section -->
+        <div class="bg-white rounded-lg shadow mb-6 overflow-hidden">
+            <div class="bg-gray-700 text-white px-5 py-3">
+                <h3 class="text-lg font-bold">Totalen</h3>
+            </div>
+            <table class="w-full text-sm">
+                <tbody>
+                    <tr class="border-b">
+                        <td class="px-5 py-3 font-medium text-gray-700 w-1/2">INKOMSTEN</td>
+                        <td id="summaryIncome" class="text-right px-5 py-3 font-medium text-green-700"></td>
+                        <td id="summaryIncomeMonthly" class="text-right px-5 py-3 text-green-600"></td>
+                    </tr>
+                    <tr class="border-b">
+                        <td class="px-5 py-3 font-medium text-gray-700">UITGAVEN</td>
+                        <td id="summaryExpenses" class="text-right px-5 py-3 font-medium text-red-700"></td>
+                        <td id="summaryExpensesMonthly" class="text-right px-5 py-3 text-red-600"></td>
+                    </tr>
+                    <tr class="bg-blue-50 border-t-2 border-blue-300">
+                        <td class="px-5 py-4 font-bold text-blue-800 text-base">VERSCHIL</td>
+                        <td id="summaryNet" class="text-right px-5 py-4 font-bold text-base"></td>
+                        <td id="summaryNetMonthly" class="text-right px-5 py-4 font-bold text-base"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Savings Section -->
+        <div class="bg-white rounded-lg shadow mb-6 overflow-hidden">
+            <div class="bg-indigo-600 text-white px-5 py-3">
+                <h3 class="text-lg font-bold">Sparen</h3>
+            </div>
+            <table class="w-full text-sm">
+                <thead class="bg-indigo-50 border-b">
+                    <tr>
+                        <th class="text-left px-5 py-2 font-medium text-gray-600" style="width:40%">Rekening</th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Inleg</th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Opname</th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Netto</th>
+                        <th class="text-right px-5 py-2 font-medium text-gray-600">Gem./maand</th>
+                    </tr>
+                </thead>
+                <tbody id="savingsBody"></tbody>
+                <tfoot>
+                    <tr class="bg-indigo-50 border-t-2 border-indigo-200 font-bold">
+                        <td class="px-5 py-3 text-indigo-800">TOTAAL</td>
+                        <td id="savingsInTotal" class="text-right px-5 py-3 text-indigo-800"></td>
+                        <td id="savingsOutTotal" class="text-right px-5 py-3 text-indigo-800"></td>
+                        <td id="savingsNetTotal" class="text-right px-5 py-3 text-indigo-800"></td>
+                        <td id="savingsNetMonthlyTotal" class="text-right px-5 py-3 text-indigo-700"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initDashboard('budget');
+});
+
+function formatCur(amount) {
+    return new Intl.NumberFormat('nl-NL', {
+        style: 'currency', currency: 'EUR', minimumFractionDigits: 2
+    }).format(amount);
+}
+
+async function loadBudget() {
+    try {
+        const qs = buildQueryParams();
+        const res = await fetch('/dashboard/api/budget-overview?' + qs);
+        const data = await res.json();
+        const ov = data.overview;
+
+        document.getElementById('budgetLoading').classList.add('hidden');
+        document.getElementById('budgetContent').classList.remove('hidden');
+
+        // Render income
+        renderSection('incomeBody', ov.income);
+        document.getElementById('totalIncome').textContent = formatCur(ov.totals.income);
+        document.getElementById('totalIncomeMonthly').textContent = formatCur(ov.totals.income_monthly);
+
+        // Render expenses
+        renderSection('expenseBody', ov.expenses);
+        document.getElementById('totalExpenses').textContent = formatCur(ov.totals.expenses);
+        document.getElementById('totalExpensesMonthly').textContent = formatCur(ov.totals.expenses_monthly);
+
+        // Render savings
+        const sav = ov.savings;
+        renderSavingsAccounts(sav);
+
+        // Summary — human-friendly signs: income positive, expenses negative
+        document.getElementById('summaryIncome').textContent = formatCur(ov.totals.income);
+        document.getElementById('summaryIncomeMonthly').textContent = formatCur(ov.totals.income_monthly);
+        document.getElementById('summaryExpenses').textContent = formatCur(-ov.totals.expenses);
+        document.getElementById('summaryExpensesMonthly').textContent = formatCur(-ov.totals.expenses_monthly);
+
+        const netTotal = ov.totals.income - ov.totals.expenses;
+        const netMonthly = ov.totals.income_monthly - ov.totals.expenses_monthly;
+        const netEl = document.getElementById('summaryNet');
+        const netMonthlyEl = document.getElementById('summaryNetMonthly');
+        netEl.textContent = formatCur(netTotal);
+        netMonthlyEl.textContent = formatCur(netMonthly);
+        const netColor = netTotal >= 0 ? 'text-green-700' : 'text-red-700';
+        netEl.className = `text-right px-5 py-4 font-bold text-base ${netColor}`;
+        netMonthlyEl.className = `text-right px-5 py-4 font-bold text-base ${netColor}`;
+    } catch (err) {
+        console.error('Failed to load budget overview:', err);
+        document.getElementById('budgetLoading').textContent = 'Fout bij laden van gegevens';
+    }
+}
+
+function renderSection(bodyId, groups) {
+    const tbody = document.getElementById(bodyId);
+    if (!groups || groups.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-gray-400 py-6">Geen data</td></tr>';
+        return;
+    }
+
+    let html = '';
+    for (const group of groups) {
+        // Group header row
+        html += `
+            <tr class="bg-gray-100 border-t border-gray-300 cursor-pointer group-header" onclick="toggleGroup(this)">
+                <td class="px-5 py-2 font-bold text-gray-800">
+                    <span class="inline-block w-3 h-3 rounded-full mr-2" style="background-color: ${group.color}"></span>
+                    <span class="toggle-icon text-xs text-gray-400 mr-1">▼</span>
+                    ${group.name}
+                </td>
+                <td class="text-right px-5 py-2 font-bold text-gray-800">${formatCur(group.subtotal)}</td>
+                <td class="text-right px-5 py-2 font-medium text-gray-600">${formatCur(group.monthly_avg)}</td>
+            </tr>
+        `;
+
+        // Item rows (only if group has more than 1 item, or the single item name differs from group)
+        const showItems = group.items.length > 1 || 
+                         (group.items.length === 1 && group.items[0].name !== group.name);
+        if (showItems) {
+            for (const item of group.items) {
+                html += `
+                    <tr class="group-items border-b border-gray-100 hover:bg-gray-50">
+                        <td class="pl-10 pr-5 py-2 text-gray-600">
+                            <span class="inline-block w-2 h-2 rounded-full mr-2" style="background-color: ${item.color}"></span>
+                            ${item.name}
+                        </td>
+                        <td class="text-right px-5 py-2 text-gray-700">${formatCur(item.total)}</td>
+                        <td class="text-right px-5 py-2 text-gray-500">${formatCur(item.monthly_avg)}</td>
+                    </tr>
+                `;
+            }
+        }
+    }
+    tbody.innerHTML = html;
+}
+
+function toggleGroup(headerRow) {
+    const icon = headerRow.querySelector('.toggle-icon');
+    let next = headerRow.nextElementSibling;
+    const isCollapsing = icon.textContent === '▼';
+    icon.textContent = isCollapsing ? '▶' : '▼';
+
+    while (next && next.classList.contains('group-items')) {
+        next.style.display = isCollapsing ? 'none' : '';
+        next = next.nextElementSibling;
+    }
+}
+
+function renderSavingsAccounts(sav) {
+    const tbody = document.getElementById('savingsBody');
+    const accounts = sav.accounts || [];
+
+    if (accounts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-6">Geen spaardata</td></tr>';
+        return;
+    }
+
+    let html = '';
+    for (const acct of accounts) {
+        const netColor = acct.net >= 0 ? 'text-green-700' : 'text-red-600';
+        html += `
+            <tr class="border-b border-gray-100 hover:bg-gray-50">
+                <td class="px-5 py-2 text-gray-700">${acct.name}</td>
+                <td class="text-right px-5 py-2 text-gray-700">${formatCur(acct.savings_in)}</td>
+                <td class="text-right px-5 py-2 text-gray-700">${formatCur(acct.savings_out)}</td>
+                <td class="text-right px-5 py-2 font-medium ${netColor}">${formatCur(acct.net)}</td>
+                <td class="text-right px-5 py-2 text-gray-500">${formatCur(acct.net_monthly)}</td>
+            </tr>
+        `;
+    }
+    tbody.innerHTML = html;
+
+    const netColor = sav.net_savings >= 0 ? 'text-green-700' : 'text-red-600';
+    document.getElementById('savingsInTotal').textContent = formatCur(sav.savings_in);
+    document.getElementById('savingsOutTotal').textContent = formatCur(sav.savings_out);
+    const netEl = document.getElementById('savingsNetTotal');
+    netEl.textContent = formatCur(sav.net_savings);
+    netEl.className = `text-right px-5 py-3 font-bold ${netColor}`;
+    document.getElementById('savingsNetMonthlyTotal').textContent = formatCur(sav.net_savings_monthly);
+}
+</script>
+{% endblock %}

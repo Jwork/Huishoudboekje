@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Transactions - Expense Tracker{% endblock %}
+
+{% block content %}
+{# Server-side sortable header macro #}
+{% set f = filters or {} %}
+{% macro sort_header(col_key, title, align='left') %}
+{% set current_sort = f.sort or 'date' %}
+{% set current_dir = f.dir or 'desc' %}
+{% set new_dir = 'asc' if (current_sort == col_key and current_dir == 'desc') else 'desc' %}
+{% set arrow = '↑' if (current_sort == col_key and current_dir == 'asc') else ('↓' if current_sort == col_key else '↕') %}
+{% set url_params = {} %}
+{% for key in ['search', 'merchant', 'start_date', 'end_date', 'category_id', 'type', 'min_amount', 'max_amount', 'is_transfer', 'is_incidental'] %}
+    {% if f.get(key) %}{% if url_params.update({key: f[key]}) %}{% endif %}{% endif %}
+{% endfor %}
+<th class="px-4 py-3 text-{{ align }} text-xs font-medium text-gray-500 uppercase tracking-wider select-none">
+    <a href="{{ url_for('transactions.transactions', sort=col_key, dir=new_dir, **url_params) }}" 
+       class="flex items-center gap-1 {% if align == 'right' %}justify-end{% endif %} hover:text-gray-700 {% if current_sort == col_key %}text-blue-600{% endif %}">
+        {{ title }} <span>{{ arrow }}</span>
+    </a>
+</th>
+{% endmacro %}
+
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h2 class="text-3xl font-bold mb-2">💳 All Transactions</h2>
+            <p class="text-gray-600">
+                {% if transactions %}
+                    {{ total_items }} transaction(s)
+                {% else %}
+                    No transactions yet. 
+                {% endif %}
+            </p>
+        </div>
+        <div>
+            <a href="{{ url_for('transactions.import_csv') }}" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium flex items-center gap-2">
+                📥 Import CSV
+            </a>
+        </div>
+    </div>
+
+    {% if transactions or f.search %}
+    {# Filter bar partial #}
+    {% set filter_url = 'transactions.transactions' %}
+    {% include 'partials/filter_bar.html' with context %}
+
+    <!-- Bulk Actions Panel (shown when rows selected) -->
+    <div id="bulkSelectedPanel" class="bg-blue-50 rounded-lg p-4 shadow-lg mb-4 hidden">
+        <div class="flex flex-wrap gap-4 items-center">
+            <div class="font-medium text-blue-800">
+                <span id="selectedCount">0</span> selected
+            </div>
+            <div class="flex-1 flex gap-2 items-center">
+                <button type="button" onclick="openBulkCategoryPicker()" 
+                        class="px-4 py-2 border-2 border-blue-300 bg-white rounded-lg hover:bg-blue-50">
+                    🏷️ <span id="bulkCategoryLabel">Select Category</span>
+                </button>
+                <input type="hidden" id="bulkCategoryId" value="">
+                <label class="text-sm text-gray-600 flex items-center gap-1">
+                    <input type="checkbox" id="bulkCreateRule" class="rounded">
+                    Create rules
+                </label>
+                <button onclick="bulkCategorizeSelected()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                    Apply to Selected
+                </button>
+            </div>
+            <button onclick="clearSelection()" class="text-gray-500 hover:text-gray-700 px-2">
+                ✕ Clear
+            </button>
+        </div>
+    </div>
+
+    <!-- Bulk Categorization by Merchant -->
+    <div class="bg-white rounded-lg p-4 shadow-lg mb-4">
+        <details class="group">
+            <summary class="flex items-center justify-between cursor-pointer list-none">
+                <h3 class="text-lg font-bold">⚡ Quick Bulk Categorize by Merchant</h3>
+                <span class="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            <div class="mt-4">
+                <p class="text-sm text-gray-600 mb-3">Select a merchant to categorize all their transactions at once</p>
+                <form method="post" action="{{ url_for('transactions.bulk_categorize') }}" class="flex flex-wrap gap-4 items-end">
+                    <div class="flex-1 min-w-64">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Merchant</label>
+                        <select name="merchant" required class="w-full px-4 py-2 border rounded-lg">
+                            <option value="">-- Select Merchant --</option>
+                            {% for m in merchants %}
+                            <option value="{{ m.name }}" {% if m.uncategorized > 0 %}class="bg-yellow-50"{% endif %}>
+                                {{ m.name[:40] }}{% if m.name|length > 40 %}...{% endif %} ({{ m.count }} trans{% if m.uncategorized > 0 %}, {{ m.uncategorized }} uncategorized{% endif %})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="w-48">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                        <div class="flex gap-1">
+                            <select name="category_id" required class="flex-1 px-4 py-2 border rounded-lg category-select">
+                                <option value="">-- Select --</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" onclick="openCategoryModal()" class="px-2 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200" title="Add new category">
+                                ➕
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-gray-600 flex items-center gap-1">
+                            <input type="checkbox" name="create_rule" class="rounded" checked>
+                            Create rule
+                        </label>
+                    </div>
+                    <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
+                        Apply to All
+                    </button>
+                </form>
+            </div>
+        </details>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Transactions Table -->
+<div class="bg-white rounded-lg shadow-lg overflow-hidden relative">
+    <div class="overflow-x-auto">
+        <table class="w-full" id="transactionsTable">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="rounded" title="Select all visible">
+                    </th>
+                    {{ sort_header('date', 'Date') }}
+                    {{ sort_header('merchant', 'Merchant') }}
+                    {{ sort_header('description', 'Description') }}
+                    {{ sort_header('counter_account', 'Tegenrekening') }}
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                    {{ sort_header('category', 'Category') }}
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transfer</th>
+                    <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider" title="Incidental / One-off">One-off</th>
+                    {{ sort_header('type', 'Dir') }}
+                    {{ sort_header('amount', 'Amount', 'right') }}
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                {% if transactions %}
+                {% for trans in transactions %}
+                <tr class="hover:bg-gray-50 transaction-row" data-id="{{ trans.id }}">
+                    <td class="px-4 py-3 text-center">
+                        <input type="checkbox" class="row-checkbox rounded" value="{{ trans.id }}" onchange="updateSelection()">
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">{{ trans.date }}</td>
+                    <td class="px-4 py-3 text-sm font-medium" title="{{ trans.merchant }}">
+                        {{ trans.merchant[:25] if trans.merchant else '-' }}{% if trans.merchant and trans.merchant|length > 25 %}...{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-600" title="{{ trans.description }}">
+                        {{ trans.description[:35] if trans.description else '-' }}{% if trans.description and trans.description|length > 35 %}...{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap" title="{{ trans.counter_account }}">
+                        {{ trans.counter_account[:18] if trans.counter_account else '-' }}{% if trans.counter_account and trans.counter_account|length > 18 %}...{% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <div class="notes-cell" data-id="{{ trans.id }}">
+                            <span class="notes-display cursor-pointer hover:bg-gray-100 px-1 rounded" onclick="editNotes(this)" title="Click to edit notes">
+                                {{ trans.notes[:15] if trans.notes else '📝' }}{% if trans.notes and trans.notes|length > 15 %}...{% endif %}
+                            </span>
+                            <input type="text" class="notes-input hidden text-sm border rounded px-2 py-1 w-28" 
+                                   value="{{ trans.notes or '' }}" 
+                                   onblur="saveNotes(this)" 
+                                   onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.value=this.dataset.original;this.blur();}">
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-sm">
+                        <div class="flex gap-1 items-center">
+                            <button type="button" 
+                                    onclick="openCategoryPicker({{ trans.id }}, '{{ trans.merchant|e }}')"
+                                    class="text-sm border rounded px-3 py-1 transition-colors {% if trans.category == 'Uncategorized' %}border-yellow-300 bg-yellow-50 hover:bg-yellow-100{% else %}border-gray-300 bg-white hover:bg-gray-50{% endif %}">
+                                {% if trans.category == 'Uncategorized' %}🏷️ Select{% else %}{{ trans.category[:20] }}{% if trans.category|length > 20 %}...{% endif %}{% endif %}
+                            </button>
+                            <label class="text-xs text-gray-500 flex items-center gap-1" title="Create rule">
+                                <input type="checkbox" id="rule_{{ trans.id }}" class="rounded">
+                                Rule
+                            </label>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" onchange="toggleTransfer({{ trans.id }}, this)" 
+                                   {% if trans.is_transfer %}checked{% endif %} class="rounded text-purple-600 focus:ring-purple-500">
+                        </label>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="checkbox" onchange="toggleIncidental({{ trans.id }}, this)" 
+                                   {% if trans.is_incidental %}checked{% endif %} class="rounded text-orange-600 focus:ring-orange-500">
+                        </label>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">
+                        <button onclick="cycleTransactionType({{ trans.id }}, this)" 
+                                class="type-btn px-2 py-1 rounded text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity
+                                {% if trans.direction == 'credit' %}bg-green-100 text-green-700
+                                {% else %}bg-red-100 text-red-700{% endif %}"
+                                title="Click to change direction">
+                            {% if trans.direction == 'credit' %}Credit{% else %}Debit{% endif %}
+                        </button>
+                    </td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold {% if trans.direction == 'credit' %}text-green-600{% else %}text-red-600{% endif %}">
+                        € {{ '{:,.2f}'.format(trans.amount) }}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="11" class="px-6 py-12 text-center">
+                        <div class="text-6xl mb-4">📥</div>
+                        <div class="text-xl font-semibold text-gray-600 mb-2">No Transactions Yet</div>
+                        <div class="text-gray-500">Import a CSV file to get started.</div>
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    {# Pagination partial #}
+    {% set page_url = 'transactions.transactions' %}
+    {% include 'partials/pagination.html' with context %}
+</div>
+
+<!-- Add Category Modal -->
+<div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4 shadow-xl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-bold">➕ Add New Category</h3>
+            <button onclick="closeCategoryModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <form id="addCategoryForm" onsubmit="submitCategory(event)">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                <input type="text" id="newCategoryName" required 
+                       class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                       placeholder="e.g. Groceries, Entertainment">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Parent Category (optional)</label>
+                <select id="parentCategory" class="w-full px-4 py-2 border rounded-lg">
+                    <option value="">None (Top Level)</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="categoryError" class="mb-4 text-red-600 text-sm hidden"></div>
+            <div class="flex gap-2">
+                <button type="button" onclick="closeCategoryModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+                <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Advanced Category Picker Modal -->
+<div id="categoryPickerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col mx-4">
+        <div class="flex justify-between items-center p-4 border-b">
+            <div>
+                <h3 class="text-lg font-bold">🏷️ Select Category</h3>
+                <p class="text-sm text-gray-500" id="pickerMerchant"></p>
+            </div>
+            <button onclick="closeCategoryPicker()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+        <div class="p-4 border-b">
+            <input type="text" id="categorySearch" 
+                   placeholder="🔍 Type to search categories..."
+                   class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                   oninput="filterCategories()">
+        </div>
+        <div class="flex-1 overflow-y-auto p-4" id="categoryTreeContainer">
+            <div id="recentCategories" class="mb-4 hidden">
+                <div class="font-bold text-gray-800 py-2 px-3 bg-blue-100 rounded-lg flex items-center gap-2 mb-2">
+                    <span class="text-lg">⏱️</span> Recently Used
+                </div>
+                <div id="recentCategoriesList" class="flex flex-wrap gap-2 ml-2 mb-4"></div>
+            </div>
+            <div id="categoryTreeContent"></div>
+            <div id="noResults" class="hidden text-center py-8 text-gray-500">
+                <div class="text-4xl mb-2">🔍</div>
+                <div>No categories found</div>
+                <button type="button" onclick="closeCategoryPicker(); openCategoryModal();" class="mt-3 text-blue-600 hover:text-blue-800">➕ Add new category</button>
+            </div>
+        </div>
+        <div class="border-t p-4 flex justify-between items-center bg-gray-50">
+            <button type="button" onclick="closeCategoryPicker(); openCategoryModal();" class="text-blue-600 hover:text-blue-800 text-sm">➕ Add new category</button>
+            <button onclick="closeCategoryPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Category tree data from server
+    window.categoryTreeData = {{ category_tree | tojson | safe }};
+</script>
+<script src="{{ url_for('static', filename='js/transactions.js') }}"></script>
+{% endblock %}

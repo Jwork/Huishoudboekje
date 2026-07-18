@@ -1,0 +1,7 @@
+pandas
+matplotlib
+pillow
+flask
+python-dateutil
+gunicorn
+psycopg2-binary
