@@ -1,21 +1,21 @@
 {% extends "base.html" %}
-{% block title %}Import Transactions - Expense Tracker{% endblock %}
+{% block title %}Importeer Transacties - Expense Tracker{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto">
     <div class="bg-white rounded-lg p-6 shadow-lg mb-6">
-        <h2 class="text-3xl font-bold mb-4">📥 Import Transactions</h2>
+        <h2 class="text-3xl font-bold mb-4">📥 Importeer Transacties</h2>
         <p class="text-gray-600 mb-6">
-            Upload a CSV file from your bank to import transactions.
+            Upload een CSV-bestand van je bank om transacties te importeren.
         </p>
         
         <form method="post" action="{{ url_for('transactions.import_csv') }}" enctype="multipart/form-data" class="space-y-6">
             <!-- Format selector -->
             <div>
-                <label for="format_id" class="block text-sm font-medium text-gray-700 mb-1">Bank / Format</label>
+                <label for="format_id" class="block text-sm font-medium text-gray-700 mb-1">Bank / Formaat</label>
                 <select name="format_id" id="format_id"
                         class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="auto">Auto-detect</option>
+                    <option value="auto">Automatisch detecteren</option>
                     {% for imp in importers %}
                     <option value="{{ imp.id }}">{{ imp.name }}</option>
                     {% endfor %}
@@ -33,15 +33,15 @@
                               file:bg-blue-50 file:text-blue-700
                               hover:file:bg-blue-100
                               cursor-pointer">
-                <p class="mt-2 text-xs text-gray-500">.csv files only</p>
+                <p class="mt-2 text-xs text-gray-500">Alleen .csv bestanden</p>
             </div>
             
             <div class="flex justify-end gap-3">
                 <a href="{{ url_for('transactions.transactions') }}" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">
-                    Cancel
+                    Annuleren
                 </a>
                 <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium">
-                    Import Transactions
+                    Importeer Transacties
                 </button>
             </div>
         </form>
@@ -49,16 +49,16 @@
 
     <!-- Rebuild from retained files -->
     <div class="bg-orange-50 border border-orange-200 rounded-lg p-6 mb-6">
-        <h3 class="text-lg font-bold text-orange-800 mb-2">🔄 Rebuild Database</h3>
+        <h3 class="text-lg font-bold text-orange-800 mb-2">🔄 Database Opnieuw Opbouwen</h3>
         <p class="text-orange-900 text-sm mb-4">
-            Re-import all transactions from the retained CSV files.
-            This will clear all existing transactions and re-import them from scratch.
-            Categories, rules, and other settings are preserved.
+            Importeer alle transacties opnieuw uit de bewaarde CSV-bestanden.
+            Dit verwijdert alle bestaande transacties en importeert ze opnieuw.
+            Categorieën, regels en andere instellingen blijven behouden.
         </p>
         <form method="post" action="{{ url_for('transactions.rebuild_from_files') }}"
-              onsubmit="return confirm('This will delete all transactions and re-import from retained files. Categories and rules will be preserved. Continue?');">
+              onsubmit="return confirm('Dit zal alle transacties verwijderen en opnieuw importeren uit bewaarde bestanden. Categorieën en regels blijven behouden. Doorgaan?');">
             <button type="submit" class="bg-orange-600 text-white px-6 py-2 rounded-lg hover:bg-orange-700 font-medium">
-                Rebuild from Files
+                Opnieuw Opbouwen uit Bestanden
             </button>
         </form>
     </div>
@@ -67,19 +67,19 @@
     {% if import_batches %}
     <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
         <div class="p-4 bg-gray-50 border-b">
-            <h3 class="font-bold">📋 Import History</h3>
-            <p class="text-sm text-gray-600 mt-1">Previously imported files and their date ranges</p>
+            <h3 class="font-bold">📋 Importgeschiedenis</h3>
+            <p class="text-sm text-gray-600 mt-1">Eerder geïmporteerde bestanden en hun datumbereiken</p>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Filename</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Format</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account</th>
-                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Rows</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Range</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Imported At</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bestandsnaam</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Formaat</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rekening</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Rijen</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datumbereik</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Geïmporteerd op</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -101,7 +101,7 @@
                             {% if batch.min_date and batch.max_date %}
                             {{ batch.min_date }} → {{ batch.max_date }}
                             {% else %}
-                            <span class="text-gray-400 italic">no data</span>
+                            <span class="text-gray-400 italic">geen data</span>
                             {% endif %}
                         </td>
                         <td class="px-4 py-3 text-sm text-gray-500">{{ batch.imported_at.strftime('%Y-%m-%d %H:%M') if batch.imported_at else '—' }}</td>
@@ -115,16 +115,16 @@
 
     <!-- Instructions / Help -->
     <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 class="text-lg font-bold text-blue-800 mb-2">Instructions</h3>
+        <h3 class="text-lg font-bold text-blue-800 mb-2">Instructies</h3>
         <ul class="list-disc list-inside text-blue-900 space-y-2">
-            <li>Select your bank format from the dropdown, or leave on <strong>Auto-detect</strong>.</li>
-            <li>When you pick a file, the system will try to auto-detect the format and pre-select it.</li>
-            <li>Duplicates are automatically detected and skipped based on date, amount, and description.</li>
-            <li>Transfers between your own accounts are automatically detected.</li>
-            <li>Uploaded files are retained locally for database rebuild.</li>
+            <li>Selecteer je bankformaat uit het dropdown-menu, of laat staan op <strong>Automatisch detecteren</strong>.</li>
+            <li>Wanneer je een bestand kiest, zal het systeem proberen het formaat automatisch te detecteren en te selecteren.</li>
+            <li>Duplicaten worden automatisch gedetecteerd en overgeslagen op basis van datum, bedrag en mededelingen.</li>
+            <li>Overboekingen tussen je eigen rekeningen worden automatisch gedetecteerd.</li>
+            <li>Geüploade bestanden worden lokaal bewaard voor het opnieuw opbouwen van de database.</li>
         </ul>
 
-        <h4 class="font-semibold text-blue-800 mt-4 mb-1">Supported formats</h4>
+        <h4 class="font-semibold text-blue-800 mt-4 mb-1">Ondersteunde formaten</h4>
         <ul class="list-disc list-inside text-blue-900 space-y-1 text-sm">
             {% for imp in importers %}
             <li>{{ imp.name }}</li>
@@ -142,7 +142,7 @@ document.getElementById('csv_file').addEventListener('change', async function() 
 
     if (!file) return;
 
-    status.textContent = 'Detecting format...';
+    status.textContent = 'Formaat detecteren...';
     status.className = 'mt-1 text-xs text-gray-500';
 
     const formData = new FormData();
@@ -157,15 +157,15 @@ document.getElementById('csv_file').addEventListener('change', async function() 
 
         if (data.format_id) {
             select.value = data.format_id;
-            status.textContent = `Detected: ${data.format_name}`;
+            status.textContent = `Gedetecteerd: ${data.format_name}`;
             status.className = 'mt-1 text-xs text-green-600 font-medium';
         } else {
             select.value = 'auto';
-            status.textContent = 'Format not recognized — please select manually.';
+            status.textContent = 'Formaat niet herkend — selecteer handmatig.';
             status.className = 'mt-1 text-xs text-orange-600';
         }
     } catch (err) {
-        status.textContent = 'Detection failed — you can still select manually.';
+        status.textContent = 'Detectie mislukt — je kunt nog steeds handmatig selecteren.';
         status.className = 'mt-1 text-xs text-orange-600';
     }
 });

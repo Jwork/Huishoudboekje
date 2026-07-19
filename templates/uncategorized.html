@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Uncategorized Transactions - Expense Tracker{% endblock %}
+{% block title %}Ongecategoriseerde Transacties - Expense Tracker{% endblock %}
 
 {% block content %}
 {# Server-side sortable header macro #}
@@ -22,12 +22,12 @@
 {% endmacro %}
 
 <div class="mb-6">
-    <h2 class="text-3xl font-bold mb-2">🏷️ Uncategorized Transactions</h2>
+    <h2 class="text-3xl font-bold mb-2">🏷️ Ongecategoriseerde Transacties</h2>
     <p class="text-gray-600 mb-4">
         {% if total_items > 0 %}
-            {{ total_items }} transaction(s) need categorization
+            {{ total_items }} transactie(s) te categoriseren
         {% else %}
-            All transactions are categorized! 🎉
+            Alle transacties zijn gecategoriseerd! 🎉
         {% endif %}
     </p>
     
@@ -42,57 +42,57 @@
     <div id="bulkSelectedPanel" class="bg-blue-50 rounded-lg p-4 shadow-lg mb-4 hidden">
         <div class="flex flex-wrap gap-4 items-center">
             <div class="font-medium text-blue-800">
-                <span id="selectedCount">0</span> selected
+                <span id="selectedCount">0</span> geselecteerd
             </div>
             <div class="flex-1 flex gap-2 items-center">
                 <button type="button" onclick="openBulkCategoryPicker()" 
                         class="px-4 py-2 border-2 border-blue-300 bg-white rounded-lg hover:bg-blue-50">
-                    🏷️ <span id="bulkCategoryLabel">Select Category</span>
+                    🏷️ <span id="bulkCategoryLabel">Categorie Selecteren</span>
                 </button>
                 <input type="hidden" id="bulkCategoryId" value="">
                 <label class="text-sm text-gray-600 flex items-center gap-1">
                     <input type="checkbox" id="bulkCreateRule" class="rounded">
-                    Create rules
+                    Regels aanmaken
                 </label>
                 <button onclick="bulkCategorizeSelected()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                    Apply to Selected
+                    Toepassen op Selectie
                 </button>
             </div>
             <button onclick="clearSelection()" class="text-gray-500 hover:text-gray-700 px-2">
-                ✕ Clear
+                ✕ Wissen
             </button>
         </div>
     </div>
 
     <!-- Bulk Categorization by Merchant -->
     <div class="bg-white rounded-lg p-6 shadow-lg mb-6">
-        <h3 class="text-lg font-bold mb-3">⚡ Quick Bulk Categorize by Merchant</h3>
-        <p class="text-sm text-gray-600 mb-3">Select a merchant to categorize all their transactions at once</p>
+        <h3 class="text-lg font-bold mb-3">⚡ Snel Bulk Categoriseren op Naam / Omschrijving</h3>
+        <p class="text-sm text-gray-600 mb-3">Selecteer een Naam / Omschrijving om al hun transacties in één keer te categoriseren</p>
         <form method="post" action="{{ url_for('transactions.bulk_categorize') }}" class="flex flex-wrap gap-4 items-end">
             <input type="hidden" name="redirect_to" value="transactions.uncategorized">
             <div class="flex-1 min-w-64">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Merchant</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Naam / Omschrijving</label>
                 <select name="merchant" required class="w-full px-4 py-2 border rounded-lg">
-                    <option value="">-- Select Merchant --</option>
+                    <option value="">-- Selecteer Naam / Omschrijving --</option>
                     {% for m in merchants %}
                     {% if m.uncategorized > 0 %}
                     <option value="{{ m.name }}">
-                        {{ m.name[:40] }}{% if m.name|length > 40 %}...{% endif %} ({{ m.uncategorized }} uncategorized)
+                        {{ m.name[:40] }}{% if m.name|length > 40 %}...{% endif %} ({{ m.uncategorized }} ongecategoriseerd)
                     </option>
                     {% endif %}
                     {% endfor %}
                 </select>
             </div>
             <div class="w-48">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Categorie</label>
                 <div class="flex gap-1">
                     <select name="category_id" required class="flex-1 px-4 py-2 border rounded-lg category-select">
-                        <option value="">-- Select --</option>
+                        <option value="">-- Selecteer --</option>
                         {% for cat in categories %}
                         <option value="{{ cat.id }}">{{ cat.name }}</option>
                         {% endfor %}
                     </select>
-                    <button type="button" onclick="openCategoryModal()" class="px-2 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200" title="Add new category">
+                    <button type="button" onclick="openCategoryModal()" class="px-2 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200" title="Nieuwe categorie toevoegen">
                         ➕
                     </button>
                 </div>
@@ -100,11 +100,11 @@
             <div class="flex items-center gap-2">
                 <label class="text-sm text-gray-600 flex items-center gap-1">
                     <input type="checkbox" name="create_rule" class="rounded" checked>
-                    Create rule for future imports
+                    Regel aanmaken voor toekomstige imports
                 </label>
             </div>
             <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
-                Apply to All
+                Toepassen op Alles
             </button>
         </form>
     </div>
@@ -118,14 +118,14 @@
             <thead class="bg-yellow-50">
                 <tr>
                     <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="rounded" title="Select all visible">
+                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" class="rounded" title="Selecteer alle zichtbare">
                     </th>
-                    {{ sort_header('date', 'Date') }}
-                    {{ sort_header('merchant', 'Merchant') }}
-                    {{ sort_header('description', 'Description') }}
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-56">Assign Category</th>
-                    {{ sort_header('type', 'Dir') }}
-                    {{ sort_header('amount', 'Amount', 'right') }}
+                    {{ sort_header('date', 'Datum') }}
+                    {{ sort_header('merchant', 'Naam / Omschrijving') }}
+                    {{ sort_header('description', 'Mededelingen') }}
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-56">Categorie Toewijzen</th>
+                    {{ sort_header('type', 'Richting') }}
+                    {{ sort_header('amount', 'Bedrag (EUR)', 'right') }}
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -147,21 +147,21 @@
                             <button type="button" 
                                     onclick="openCategoryPicker({{ trans.id }}, '{{ trans.merchant|e }}')"
                                     class="text-sm border-2 border-yellow-300 rounded px-3 py-1 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400 transition-colors">
-                                🏷️ Select Category
+                                🏷️ Categorie Selecteren
                             </button>
-                            <label class="text-xs text-gray-500 flex items-center gap-1" title="Create auto-categorization rule for this merchant">
+                            <label class="text-xs text-gray-500 flex items-center gap-1" title="Maak automatische categorisatieregel voor deze Naam / Omschrijving">
                                 <input type="checkbox" id="rule_{{ trans.id }}" class="rounded">
-                                Rule
+                                Regel
                             </label>
                             <a href="{{ url_for('rules.index', pattern=trans.merchant or '', counter_account=trans.counter_account or '', transaction_type=trans.direction or '') }}"
-                               class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline ml-1" title="Create a rule from this transaction">
-                                📏 Rule
+                               class="text-xs text-indigo-600 hover:text-indigo-800 hover:underline ml-1" title="Maak een regel van deze transactie">
+                                📏 Regel
                             </a>
                         </div>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm">
                         <span class="{% if trans.direction == 'credit' %}text-green-600{% else %}text-red-600{% endif %}">
-                            {{ 'Income' if trans.direction == 'credit' else 'Expense' }}
+                            {{ 'Bij' if trans.direction == 'credit' else 'Af' }}
                         </span>
                     </td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold {% if trans.direction == 'credit' %}text-green-600{% else %}text-red-600{% endif %}">
@@ -173,10 +173,10 @@
                 <tr>
                     <td colspan="7" class="px-6 py-12 text-center">
                         <div class="text-6xl mb-4">🎉</div>
-                        <div class="text-xl font-semibold text-green-600 mb-2">All Done!</div>
-                        <div class="text-gray-500">All your transactions have been categorized.</div>
+                        <div class="text-xl font-semibold text-green-600 mb-2">Alles Klaar!</div>
+                        <div class="text-gray-500">Al uw transacties zijn gecategoriseerd.</div>
                         <a href="{{ url_for('transactions.transactions') }}" class="inline-block mt-4 text-blue-600 hover:text-blue-800">
-                            View all transactions →
+                            Bekijk alle transacties →
                         </a>
                     </td>
                 </tr>
@@ -192,7 +192,7 @@
 
 {% if transactions %}
 <div class="mt-4 text-sm text-gray-500 text-center">
-    💡 Tip: Check "Rule" when categorizing to automatically apply the same category to future imports from the same merchant.
+    💡 Tip: Vink "Regel" aan bij het categoriseren om dezelfde categorie automatisch toe te passen op toekomstige imports van dezelfde Naam / Omschrijving.
 </div>
 {% endif %}
 
@@ -200,20 +200,20 @@
 <div id="categoryModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 w-96 max-w-full mx-4 shadow-xl">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-bold">➕ Add New Category</h3>
+            <h3 class="text-lg font-bold">➕ Nieuwe Categorie Toevoegen</h3>
             <button onclick="closeCategoryModal()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
         </div>
         <form id="addCategoryForm" onsubmit="submitCategory(event)">
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Categorie Naam</label>
                 <input type="text" id="newCategoryName" required 
                        class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                       placeholder="e.g. Groceries, Entertainment">
+                       placeholder="bijv. Boodschappen, Entertainment">
             </div>
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Parent Category (optional)</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Hoofdcategorie (optioneel)</label>
                 <select id="parentCategory" class="w-full px-4 py-2 border rounded-lg">
-                    <option value="">None (Top Level)</option>
+                    <option value="">Geen (Hoofdniveau)</option>
                     {% for cat in categories %}
                     <option value="{{ cat.id }}">{{ cat.name }}</option>
                     {% endfor %}
@@ -222,10 +222,10 @@
             <div id="categoryError" class="mb-4 text-red-600 text-sm hidden"></div>
             <div class="flex gap-2">
                 <button type="button" onclick="closeCategoryModal()" class="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50">
-                    Cancel
+                    Annuleren
                 </button>
                 <button type="submit" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                    Add Category
+                    Categorie Toevoegen
                 </button>
             </div>
         </form>
@@ -238,7 +238,7 @@
         <!-- Header -->
         <div class="flex justify-between items-center p-4 border-b">
             <div>
-                <h3 class="text-lg font-bold">🏷️ Select Category</h3>
+                <h3 class="text-lg font-bold">🏷️ Categorie Selecteren</h3>
                 <p class="text-sm text-gray-500" id="pickerMerchant"></p>
             </div>
             <button onclick="closeCategoryPicker()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
@@ -247,7 +247,7 @@
         <!-- Search -->
         <div class="p-4 border-b">
             <input type="text" id="categorySearch" 
-                   placeholder="🔍 Type to search categories..."
+                   placeholder="🔍 Typ om categorieën te zoeken..."
                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                    oninput="filterCategories()">
         </div>
@@ -257,7 +257,7 @@
             <!-- Recently Used Section -->
             <div id="recentCategories" class="mb-4 hidden">
                 <div class="font-bold text-gray-800 py-2 px-3 bg-blue-100 rounded-lg flex items-center gap-2 mb-2">
-                    <span class="text-lg">⏱️</span> Recently Used
+                    <span class="text-lg">⏱️</span> Recent Gebruikt
                 </div>
                 <div id="recentCategoriesList" class="flex flex-wrap gap-2 ml-2 mb-4"></div>
             </div>
@@ -268,10 +268,10 @@
             <!-- No results message -->
             <div id="noResults" class="hidden text-center py-8 text-gray-500">
                 <div class="text-4xl mb-2">🔍</div>
-                <div>No categories found</div>
+                <div>Geen categorieën gevonden</div>
                 <button type="button" onclick="closeCategoryPicker(); openCategoryModal();" 
                         class="mt-3 text-blue-600 hover:text-blue-800">
-                    ➕ Add new category
+                    ➕ Nieuwe categorie toevoegen
                 </button>
             </div>
         </div>
@@ -280,10 +280,10 @@
         <div class="border-t p-4 flex justify-between items-center bg-gray-50">
             <button type="button" onclick="closeCategoryPicker(); openCategoryModal();" 
                     class="text-blue-600 hover:text-blue-800 text-sm">
-                ➕ Add new category
+                ➕ Nieuwe categorie toevoegen
             </button>
             <button onclick="closeCategoryPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">
-                Cancel
+                Annuleren
             </button>
         </div>
     </div>

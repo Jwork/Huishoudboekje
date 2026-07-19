@@ -41,7 +41,7 @@ def set_account_name():
     
     if account_number and name:
         db.set_account_name(account_number, name.strip())
-        flash(f'Account name set to "{name}"', 'success')
+        flash(f'Rekening naam ingesteld op "{name}"', 'success')
     
     return redirect(request.referrer or url_for('accounts.accounts_page'))
 
@@ -58,9 +58,9 @@ def toggle_transfer_account():
         if is_transfer:
             # Mark existing transactions as transfers
             count = db.mark_transfer_account_transactions(account_number)
-            flash(f'Marked as transfer account ({count} transactions updated)', 'success')
+            flash(f'Gemarkeerd als overboeking rekening ({count} mutaties bijgewerkt)', 'success')
         else:
-            flash('Removed transfer account flag', 'success')
+            flash('Overboeking rekening markering verwijderd', 'success')
     
     return redirect(url_for('accounts.accounts_page'))
 
@@ -74,11 +74,11 @@ def add_transfer_account():
     
     if account_number:
         db.add_transfer_account(account_number, name or None)
-        msg = f'Added "{name or account_number}" as transfer account'
+        msg = f'"{name or account_number}" toegevoegd als overboeking rekening'
         
         if mark_existing:
             count = db.mark_transfer_account_transactions(account_number)
-            msg += f' and marked {count} existing transactions as Transfer'
+            msg += f' en {count} bestaande mutaties gemarkeerd als Overboeking'
         
         flash(msg, 'success')
     
@@ -89,7 +89,7 @@ def add_transfer_account():
 def remove_transfer_account(account_id):
     """Remove a transfer account"""
     db.remove_transfer_account(account_id)
-    flash('Transfer account removed', 'success')
+    flash('Overboeking rekening verwijderd', 'success')
     return redirect(url_for('accounts.accounts_page'))
 
 
@@ -102,11 +102,11 @@ def add_transfer_pattern():
     
     if pattern:
         db.add_transfer_pattern(pattern, name or None)
-        msg = f'Added pattern "{pattern}"'
+        msg = f'Patroon "{pattern}" toegevoegd'
         
         if mark_existing:
             count = db.mark_transfer_pattern_transactions(pattern)
-            msg += f' and marked {count} existing transactions as Transfer'
+            msg += f' en {count} bestaande mutaties gemarkeerd als Overboeking'
         
         flash(msg, 'success')
     
@@ -117,7 +117,7 @@ def add_transfer_pattern():
 def remove_transfer_pattern(pattern_id):
     """Remove a transfer pattern"""
     db.remove_transfer_pattern(pattern_id)
-    flash('Transfer pattern removed', 'success')
+    flash('Overboeking patroon verwijderd', 'success')
     return redirect(url_for('accounts.accounts_page'))
 
 
@@ -143,7 +143,7 @@ def link_transfer_pair():
     
     if id1 and id2:
         db.link_transfer_pair(id1, id2)
-        flash('Transfer pair linked!', 'success')
+        flash('Overboeking paar gekoppeld!', 'success')
     
     return redirect(url_for('accounts.accounts_page'))
 
@@ -152,7 +152,7 @@ def link_transfer_pair():
 def unlink_transfer_pair(transaction_id):
     """Unlink a transfer pair"""
     db.unlink_transfer_pair(transaction_id)
-    flash('Transfer pair unlinked', 'success')
+    flash('Overboeking paar ontkoppeld', 'success')
     return redirect(url_for('accounts.accounts_page'))
 
 
@@ -161,7 +161,7 @@ def auto_link_transfers():
     """Automatically link all matching transfer pairs"""
     count = db.auto_link_transfer_pairs()
     if count > 0:
-        flash(f'Linked {count} transfer pair(s)!', 'success')
+        flash(f'{count} overboeking paar(en) gekoppeld!', 'success')
     else:
-        flash('No matching transfer pairs found', 'info')
+        flash('Geen overeenkomende overboeking paren gevonden', 'info')
     return redirect(url_for('accounts.accounts_page'))

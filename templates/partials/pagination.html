@@ -13,8 +13,8 @@
     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
         <div>
             <p class="text-sm text-gray-700">
-                Showing page <span class="font-medium">{{ page }}</span> of <span class="font-medium">{{ total_pages }}</span>
-                (<span class="font-medium">{{ total_items }}</span> total items)
+                Toont pagina <span class="font-medium">{{ page }}</span> van <span class="font-medium">{{ total_pages }}</span>
+                (<span class="font-medium">{{ total_items }}</span> totale items)
             </p>
         </div>
         <div>
@@ -45,15 +45,15 @@
     </div>
     <div class="flex items-center justify-between sm:hidden w-full">
         {% if page > 1 %}
-        <a href="{{ url_for(page_url, page=page-1, **url_params) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+        <a href="{{ url_for(page_url, page=page-1, **url_params) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Vorige</a>
         {% else %}
-        <button disabled class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">Previous</button>
+        <button disabled class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">Vorige</button>
         {% endif %}
-        <span class="text-sm text-gray-700">Page {{ page }} of {{ total_pages }}</span>
+        <span class="text-sm text-gray-700">Pagina {{ page }} van {{ total_pages }}</span>
         {% if page < total_pages %}
-        <a href="{{ url_for(page_url, page=page+1, **url_params) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+        <a href="{{ url_for(page_url, page=page+1, **url_params) }}" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Volgende</a>
         {% else %}
-        <button disabled class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">Next</button>
+        <button disabled class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">Volgende</button>
         {% endif %}
     </div>
 </div>

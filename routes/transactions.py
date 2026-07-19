@@ -272,13 +272,13 @@ def categorize_transaction(trans_id):
                 pattern = transaction['description'].split()[0].lower() if transaction['description'] else ''
                 if pattern and len(pattern) > 2:
                     db.add_categorization_rule(pattern, int(category_id))
-                    flash(f'Categorized and created rule for "{pattern}"', 'success')
+                    flash(f'Gecategoriseerd en regel aangemaakt voor "{pattern}"', 'success')
                 else:
-                    flash('Categorized successfully', 'success')
+                    flash('Succesvol gecategoriseerd', 'success')
             else:
-                flash('Categorized successfully', 'success')
+                flash('Succesvol gecategoriseerd', 'success')
         else:
-            flash('Categorized successfully', 'success')
+            flash('Succesvol gecategoriseerd', 'success')
     
     # Preserve merchant filter in redirect
     if merchant_filter:
@@ -302,7 +302,7 @@ def update_type(trans_id):
     
     # Validate direction
     if new_type not in ['debit', 'credit']:
-        return jsonify({'success': False, 'error': 'Invalid direction'})
+        return jsonify({'success': False, 'error': 'Ongeldige richting'})
     
     db.update_transaction_type(trans_id, new_type)
     return jsonify({'success': True, 'type': new_type})
@@ -318,7 +318,7 @@ def toggle_transfer(trans_id):
         # Fallback: server-side toggle
         trans = db.get_transaction_by_id(trans_id)
         if not trans:
-            return jsonify({'success': False, 'error': 'Transaction not found'})
+            return jsonify({'success': False, 'error': 'Mutatie niet gevonden'})
         new_is_transfer = not bool(trans['is_transfer'])
 
     db.update_transaction_transfer_status(trans_id, new_is_transfer)
@@ -340,11 +340,11 @@ def bulk_categorize():
             pattern = merchant.split()[0].lower()
             if pattern and len(pattern) > 2:
                 db.add_categorization_rule(pattern, int(category_id))
-                flash(f'Categorized {count} transactions and created rule for "{pattern}"', 'success')
+                flash(f'{count} mutaties gecategoriseerd en regel aangemaakt voor "{pattern}"', 'success')
             else:
-                flash(f'Categorized {count} transactions', 'success')
+                flash(f'{count} mutaties gecategoriseerd', 'success')
         else:
-            flash(f'Categorized {count} transactions', 'success')
+            flash(f'{count} mutaties gecategoriseerd', 'success')
     
     return redirect(url_for(redirect_to))
 
@@ -358,7 +358,7 @@ def bulk_categorize_selected():
     create_rules = data.get('create_rule', False)  # JS sends create_rule
     
     if not transaction_ids or not category_id:
-        return jsonify({'success': False, 'error': 'Missing transaction IDs or category'})
+        return jsonify({'success': False, 'error': 'Ontbrekende mutatie ID\'s of categorie'})
     
     try:
         merchants_for_rules = set()
@@ -407,14 +407,14 @@ def import_csv():
         
     if 'csv_file' not in request.files:
         current_app.logger.warning("Import failed: No file part in request")
-        flash('No file selected', 'error')
+        flash('Geen bestand geselecteerd', 'error')
         return redirect(url_for('transactions.import_csv'))
     
     file = request.files['csv_file']
     
     if file.filename == '':
         current_app.logger.warning("Import failed: No selected file")
-        flash('No file selected', 'error')
+        flash('Geen bestand geselecteerd', 'error')
         return redirect(url_for('transactions.import_csv'))
     
     if file and file.filename.endswith('.csv'):
@@ -455,16 +455,16 @@ def import_csv():
             if link_count > 0:
                 current_app.logger.info(f"Auto-linked {link_count} transfer pairs")
             
-            msg = f'Imported: {imported}, Duplicates: {duplicates}, Errors: {errors}'
+            msg = f'Geïmporteerd: {imported}, Duplicaten: {duplicates}, Fouten: {errors}'
             if transfer_count > 0:
-                msg += f', Transfers marked: {transfer_count}'
+                msg += f', Overboekingen gemarkeerd: {transfer_count}'
             if link_count > 0:
-                msg += f', Transfer pairs linked: {link_count}'
+                msg += f', Overboeking paren gekoppeld: {link_count}'
             flash(msg, 'success')
             return redirect(url_for('transactions.transactions'))
         except Exception as e:
             current_app.logger.error(f"Import error: {str(e)}", exc_info=True)
-            flash(f'Error: {str(e)}', 'error')
+            flash(f'Fout: {str(e)}', 'error')
             return redirect(url_for('transactions.import_csv'))
         finally:
             # Clean up temp file (retained copy is kept)
@@ -473,7 +473,7 @@ def import_csv():
                 current_app.logger.debug(f"Temporary file removed: {temp_path}")
     else:
         current_app.logger.warning(f"Import failed: Invalid file type ({file.filename})")
-        flash('Please select a CSV file', 'error')
+        flash('Selecteer alstublieft een CSV bestand', 'error')
         return redirect(url_for('transactions.import_csv'))
 
 
@@ -526,18 +526,18 @@ def rebuild_from_files():
         # Re-apply auto-categorization
         cat_count = db.auto_categorize_transactions() or 0
 
-        msg = (f'Rebuild complete: {files_processed} files, '
-               f'{total_imported} transactions imported, '
-               f'{total_errors} errors')
+        msg = (f'Herstel voltooid: {files_processed} bestanden, '
+               f'{total_imported} mutaties geïmporteerd, '
+               f'{total_errors} fouten')
         if transfer_count > 0:
-            msg += f', {transfer_count} transfers marked'
+            msg += f', {transfer_count} overboekingen gemarkeerd'
         if link_count > 0:
-            msg += f', {link_count} transfer pairs linked'
+            msg += f', {link_count} overboeking paren gekoppeld'
         if cat_count > 0:
-            msg += f', {cat_count} auto-categorized'
+            msg += f', {cat_count} automatisch gecategoriseerd'
         flash(msg, 'success')
     except Exception as e:
         current_app.logger.error(f"Rebuild error: {str(e)}", exc_info=True)
-        flash(f'Rebuild failed: {str(e)}', 'error')
+        flash(f'Herstel mislukt: {str(e)}', 'error')
 
     return redirect(url_for('transactions.import_csv'))

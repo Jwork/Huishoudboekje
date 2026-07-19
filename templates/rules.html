@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Rules - Expense Tracker{% endblock %}
+{% block title %}Regels - Expense Tracker{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex justify-between items-center">
     <div>
-        <h2 class="text-3xl font-bold text-gray-800">📏 Categorization Rules</h2>
-        <p class="text-gray-600 mt-1">Auto-assign categories by merchant name (fuzzy) and/or counter account (strict IBAN). Drag to reorder priority.</p>
+        <h2 class="text-3xl font-bold text-gray-800">📏 Categorisatieregels</h2>
+        <p class="text-gray-600 mt-1">Wijs automatisch categorieën toe op basis van naam / omschrijving (fuzzy) en/of tegenrekening (strikte IBAN). Sleep om de prioriteit te wijzigen.</p>
     </div>
     <form method="post" action="{{ url_for('rules.apply_all') }}">
         <button type="submit" class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 shadow-md flex items-center gap-2 transition duration-150 ease-in-out">
-            <span>⚡</span> Apply Rules to All
+            <span>⚡</span> Regels op Alles Toepassen
         </button>
     </form>
 </div>
@@ -18,52 +18,61 @@
 <div class="bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-100">
     <div class="bg-gray-50 px-6 py-4 border-b border-gray-100">
         <h3 class="text-lg font-bold text-gray-700 flex items-center gap-2">
-            <span>➕</span> Add New Rule
+            <span>➕</span> Nieuwe Regel Toevoegen
         </h3>
     </div>
     <div class="p-6">
         <form method="post" action="{{ url_for('rules.add') }}" id="rule-form" onsubmit="return validateRuleForm()">
             <div class="flex flex-wrap gap-4 items-end">
+                <!-- Field -->
+                <div class="w-56">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Zoek in veld</label>
+                    <select name="field" id="field-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="description" {% if prefill.field == 'description' or not prefill.field %}selected{% endif %}>Naam / Omschrijving</option>
+                        <option value="notes" {% if prefill.field == 'notes' %}selected{% endif %}>Mededelingen (Notes)</option>
+                    </select>
+                </div>
+                
                 <!-- Merchant (fuzzy) -->
                 <div class="flex-1 min-w-[250px]">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Merchant <span class="font-normal text-gray-400">(fuzzy)</span></label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Naam / Omschrijving <span class="font-normal text-gray-400">(fuzzy)</span></label>
                     <input type="text" name="pattern" list="merchant-list" id="pattern-input"
                            value="{{ prefill.pattern or '' }}"
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
-                           placeholder="e.g. Albert Heijn, Shell...">
+                           placeholder="bijv. Albert Heijn, Shell...">
                     <datalist id="merchant-list">
                         {% for m in merchants %}
-                        <option value="{{ m.name }}">{{ m.name }} ({{ m.count }} txns)</option>
+                        <option value="{{ m.name }}">{{ m.name }} ({{ m.count }} transacties)</option>
                         {% endfor %}
                     </datalist>
-                    <p class="text-xs text-gray-400 mt-1">Matches if description <em>contains</em> this text</p>
+                    <p class="text-xs text-gray-400 mt-1">Komt overeen als de mededelingen deze tekst <em>bevatten</em></p>
                 </div>
                 
                 <!-- Counter Account (strict) -->
                 <div class="flex-1 min-w-[250px]">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Counter Account <span class="font-normal text-gray-400">(strict)</span></label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Tegenrekening <span class="font-normal text-gray-400">(strikt)</span></label>
                     <input type="hidden" name="counter_account" id="counter-account-input">
                     <button type="button" onclick="openAccountPicker('add')"
                             id="add-account-btn"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-500 truncate">
-                        — Any —
+                        — Willekeurig —
                     </button>
-                    <p class="text-xs text-gray-400 mt-1">Exact IBAN match on counter account</p>
+                    <p class="text-xs text-gray-400 mt-1">Exacte IBAN-match op tegenrekening</p>
                 </div>
                 
                 <!-- Type -->
                 <div class="w-40">
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Type</label>
                     <select name="transaction_type" id="type-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                        <option value="">Any</option>
-                        <option value="debit" {% if prefill.transaction_type == 'debit' %}selected{% endif %}>Debit (Expense)</option>
-                        <option value="credit" {% if prefill.transaction_type == 'credit' %}selected{% endif %}>Credit (Income)</option>
+                        <option value="">Elke</option>
+                        <option value="debit" {% if prefill.transaction_type == 'debit' %}selected{% endif %}>Af (Uitgave)</option>
+                        <option value="credit" {% if prefill.transaction_type == 'credit' %}selected{% endif %}>Bij (Inkomsten)</option>
                     </select>
                 </div>
                 
                 <!-- Min € -->
                 <div class="w-28">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Min €</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Min (EUR)</label>
                     <input type="number" name="min_amount" id="min-amount-input" step="0.01" 
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                            placeholder="0.00">
@@ -71,7 +80,7 @@
                 
                 <!-- Max € -->
                 <div class="w-28">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Max €</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Max (EUR)</label>
                     <input type="number" name="max_amount" id="max-amount-input" step="0.01" 
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
                            placeholder="999.99">
@@ -79,22 +88,22 @@
                 
                 <!-- Category -->
                 <div class="w-56">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Assign Category</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Categorie Toewijzen</label>
                     <input type="hidden" name="category_id" id="add-category-id" required>
                     <button type="button" onclick="openRuleCategoryPicker('add')"
                             id="add-category-btn"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-500 truncate">
-                        Select Category...
+                        Selecteer Categorie...
                     </button>
                 </div>
                 
                 <!-- Buttons -->
                 <div class="flex gap-2">
-                    <button type="button" onclick="testRule()" class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-200 border border-gray-300 font-medium transition" title="Preview matching transactions">
-                        🔍 Test
+                    <button type="button" onclick="testRule()" class="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-200 border border-gray-300 font-medium transition" title="Bekijk overeenkomende transacties">
+                        🔍 Testen
                     </button>
                     <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 shadow-sm font-medium transition">
-                        Create Rule
+                        Regel Aanmaken
                     </button>
                 </div>
             </div>
@@ -105,8 +114,8 @@
 <!-- Rules List -->
 <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
     <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-        <h3 class="text-lg font-bold text-gray-700">📋 Existing Rules <span class="font-normal text-sm text-gray-400">(drag ☰ to reorder priority)</span></h3>
-        <span class="text-sm text-gray-500">{{ rules|length }} rules configured</span>
+        <h3 class="text-lg font-bold text-gray-700">📋 Bestaande Regels <span class="font-normal text-sm text-gray-400">(sleep ☰ om prioriteit te wijzigen)</span></h3>
+        <span class="text-sm text-gray-500">{{ rules|length }} regels geconfigureerd</span>
     </div>
     
     <div class="overflow-x-auto">
@@ -114,13 +123,13 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-2 py-3 w-8"></th>
-                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Merchant (fuzzy)</th>
-                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Counter Account (strict)</th>
-                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type / Amount</th>
-                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Assigns To</th>
-                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Matches</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Naam / Omschrijving (fuzzy)</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tegenrekening (strikt)</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type / Bedrag (EUR)</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Wijst toe aan</th>
+                    <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Overeenkomsten</th>
                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Acties</th>
                 </tr>
             </thead>
             <tbody id="rulesBody" class="bg-white divide-y divide-gray-200">
@@ -165,7 +174,7 @@
                                     <span>≤ €{{ '{:,.2f}'.format(rule.max_amount) }}</span>
                                     {% endif %}
                                 {% elif not rule.transaction_type %}
-                                    <span class="text-gray-400 italic">Any</span>
+                                    <span class="text-gray-400 italic">Elke</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -180,26 +189,26 @@
                             <div class="flex flex-col items-center">
                                 <span class="text-sm font-semibold text-gray-700">{{ rule.match_total }}</span>
                                 {% if rule.match_uncategorized > 0 %}
-                                <span class="text-xs text-amber-600">{{ rule.match_uncategorized }} pending</span>
+                                <span class="text-xs text-amber-600">{{ rule.match_uncategorized }} in de wacht</span>
                                 {% else %}
-                                <span class="text-xs text-gray-400">all done</span>
+                                <span class="text-xs text-gray-400">alles klaar</span>
                                 {% endif %}
                             </div>
                         </td>
                         <!-- Status -->
                         <td class="px-4 py-4 whitespace-nowrap">
                             {% if rule.active %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Actief</span>
                             {% else %}
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Inactive</span>
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Inactief</span>
                             {% endif %}
                         </td>
                         <!-- Actions -->
                         <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick='openEditModal({{ rule.id }}, {{ rule.pattern|tojson }}, {{ rule.counter_account|tojson }}, "{{ rule.category_id }}", {{ rule.active }}, {{ rule.min_amount|tojson }}, {{ rule.max_amount|tojson }}, "{{ rule.transaction_type|default("", true) }}")' 
-                                    class="text-indigo-600 hover:text-indigo-900 mr-3 font-semibold">Edit</button>
-                            <form method="post" action="{{ url_for('rules.delete', rule_id=rule.id) }}" onsubmit="return confirm('Delete this rule?');" class="inline">
-                                <button type="submit" class="text-red-600 hover:text-red-900 font-semibold">Delete</button>
+                            <button onclick='openEditModal({{ rule.id }}, {{ rule.pattern|tojson }}, {{ rule.counter_account|tojson }}, "{{ rule.category_id }}", {{ rule.active }}, {{ rule.min_amount|tojson }}, {{ rule.max_amount|tojson }}, "{{ rule.transaction_type|default("", true) }}", "{{ rule.field|default("description", true) }}")' 
+                                    class="text-indigo-600 hover:text-indigo-900 mr-3 font-semibold">Bewerken</button>
+                            <form method="post" action="{{ url_for('rules.delete', rule_id=rule.id) }}" onsubmit="return confirm('Deze regel verwijderen?');" class="inline">
+                                <button type="submit" class="text-red-600 hover:text-red-900 font-semibold">Verwijderen</button>
                             </form>
                         </td>
                     </tr>
@@ -207,8 +216,8 @@
                 {% else %}
                     <tr>
                         <td colspan="8" class="px-6 py-10 text-center text-gray-500">
-                            <p class="text-lg">No rules defined yet.</p>
-                            <p class="text-sm mt-1">Add a rule above to automatically categorize your transactions.</p>
+                            <p class="text-lg">Nog geen regels gedefinieerd.</p>
+                            <p class="text-sm mt-1">Voeg hierboven een regel toe om je transacties automatisch te categoriseren.</p>
                         </td>
                     </tr>
                 {% endif %}
@@ -221,7 +230,7 @@
 <div id="editModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center backdrop-blur-sm">
     <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform transition-all">
         <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-            <h3 class="text-lg font-bold text-gray-800">Edit Rule</h3>
+            <h3 class="text-lg font-bold text-gray-800">Regel Bewerken</h3>
             <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -232,55 +241,63 @@
         <div class="p-6">
             <form id="editForm" method="post" action="">
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Merchant Pattern <span class="font-normal text-gray-400">(fuzzy)</span></label>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Zoek in veld</label>
+                    <select id="editField" name="field" class="shadow-sm border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="description">Naam / Omschrijving</option>
+                        <option value="notes">Mededelingen (Notes)</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Patroon <span class="font-normal text-gray-400">(fuzzy)</span></label>
                     <input type="text" id="editPattern" name="pattern" list="merchant-list"
                            class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                           placeholder="e.g. Albert Heijn">
-                    <p class="text-xs text-gray-500 mt-1">Fuzzy match on description. Leave empty to match any merchant.</p>
+                           placeholder="bijv. Albert Heijn">
+                    <p class="text-xs text-gray-500 mt-1">Fuzzy match op mededelingen. Laat leeg om elke naam / omschrijving te matchen.</p>
                 </div>
                 
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Counter Account <span class="font-normal text-gray-400">(strict IBAN)</span></label>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Tegenrekening <span class="font-normal text-gray-400">(strikte IBAN)</span></label>
                     <input type="hidden" id="editCounterAccount" name="counter_account">
                     <button type="button" onclick="openAccountPicker('edit')"
                             id="edit-account-btn"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-700 truncate">
-                        — Any —
+                        — Willekeurig —
                     </button>
-                    <p class="text-xs text-gray-500 mt-1">Exact IBAN match. Leave empty to match any counter account.</p>
+                    <p class="text-xs text-gray-500 mt-1">Exacte IBAN-match. Laat leeg om elke tegenrekening te matchen.</p>
                 </div>
                 
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Transaction Type</label>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Transactietype</label>
                     <select id="editTransactionType" name="transaction_type" class="shadow-sm border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                        <option value="">Any</option>
-                        <option value="debit">Debit (Expense)</option>
-                        <option value="credit">Credit (Income)</option>
+                        <option value="">Elke</option>
+                        <option value="debit">Af (Uitgave)</option>
+                        <option value="credit">Bij (Inkomsten)</option>
                     </select>
                 </div>
                 
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Assign Category</label>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Categorie Toewijzen</label>
                     <input type="hidden" id="editCategory" name="category_id" required>
                     <button type="button" onclick="openRuleCategoryPicker('edit')"
                             id="edit-category-btn"
                             class="w-full px-4 py-2 border border-gray-300 rounded-lg text-left bg-white hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-gray-700 truncate">
-                        Select Category...
+                        Selecteer Categorie...
                     </button>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="block text-gray-700 text-sm font-bold mb-2">Min Amount (€)</label>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Min Bedrag (EUR)</label>
                         <input type="number" id="editMinAmount" name="min_amount" step="0.01" 
                                class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                               placeholder="Optional">
+                               placeholder="Optioneel">
                     </div>
                     <div>
-                        <label class="block text-gray-700 text-sm font-bold mb-2">Max Amount (€)</label>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Max Bedrag (EUR)</label>
                         <input type="number" id="editMaxAmount" name="max_amount" step="0.01" 
                                class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" 
-                               placeholder="Optional">
+                               placeholder="Optioneel">
                     </div>
                 </div>
                 
@@ -291,22 +308,22 @@
                             <div class="block bg-gray-200 w-10 h-6 rounded-full"></div>
                             <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
                         </div>
-                        <div class="ml-3 text-gray-700 font-medium">Rule Active</div>
+                        <div class="ml-3 text-gray-700 font-medium">Regel Actief</div>
                     </label>
                 </div>
                 
                 <!-- Edit conflict panel -->
                 <div id="editConflictPanel" class="hidden mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
-                    <div class="font-semibold text-amber-800 mb-1 text-sm">⚠️ Potential Conflicts</div>
+                    <div class="font-semibold text-amber-800 mb-1 text-sm">⚠️ Mogelijke Conflicten</div>
                     <div id="editConflictContent" class="text-xs text-amber-700"></div>
                 </div>
                 
                 <div class="flex items-center justify-end gap-3">
                     <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium focus:outline-none transition-colors">
-                        Cancel
+                        Annuleren
                     </button>
                     <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-sm focus:outline-none transition-colors">
-                        Save Changes
+                        Wijzigingen Opslaan
                     </button>
                 </div>
             </form>
@@ -318,7 +335,7 @@
 <div id="testModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 hidden overflow-y-auto h-full w-full z-50 flex items-center justify-center backdrop-blur-sm">
     <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden transform transition-all">
         <div class="bg-gray-50 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-            <h3 class="text-lg font-bold text-gray-800">🔍 Rule Test Results</h3>
+            <h3 class="text-lg font-bold text-gray-800">🔍 Regel Testresultaten</h3>
             <button onclick="closeTestModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -326,7 +343,7 @@
             </button>
         </div>
         <div class="p-6" id="testModalContent">
-            <p class="text-gray-500">Loading...</p>
+            <p class="text-gray-500">Laden...</p>
         </div>
     </div>
 </div>
@@ -336,14 +353,14 @@
     <div class="bg-white rounded-lg shadow-xl w-[550px] max-w-[95vw] max-h-[85vh] flex flex-col mx-4">
         <div class="flex justify-between items-center p-4 border-b">
             <div>
-                <h3 class="text-lg font-bold">🏦 Select Counter Account</h3>
-                <p class="text-sm text-gray-500">Search by name or IBAN</p>
+                <h3 class="text-lg font-bold">🏦 Selecteer Tegenrekening</h3>
+                <p class="text-sm text-gray-500">Zoek op naam of IBAN</p>
             </div>
             <button onclick="closeAccountPicker()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
         </div>
         <div class="p-4 border-b">
             <input type="text" id="accountSearch"
-                   placeholder="🔍 Type to search accounts..."
+                   placeholder="🔍 Typ om rekeningen te zoeken..."
                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                    oninput="filterAccounts()">
         </div>
@@ -351,7 +368,7 @@
             <div class="p-2">
                 <div class="account-option px-3 py-2 hover:bg-blue-50 cursor-pointer rounded-lg border-b border-gray-100"
                      data-iban="" data-search="any">
-                    <span class="text-gray-500 italic">— Any (no filter) —</span>
+                    <span class="text-gray-500 italic">— Willekeurig (geen filter) —</span>
                 </div>
                 {% for ca in counter_accounts %}
                 <div class="account-option px-3 py-2 hover:bg-blue-50 cursor-pointer rounded-lg border-b border-gray-100"
@@ -359,18 +376,18 @@
                     <div class="font-medium text-gray-900">{{ ca.name }}</div>
                     <div class="text-xs text-gray-500 flex justify-between">
                         <span class="font-mono">{{ ca.iban }}</span>
-                        <span>{{ ca.count }} txns</span>
+                        <span>{{ ca.count }} transacties</span>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             <div id="accountNoResults" class="hidden text-center py-8 text-gray-500">
                 <div class="text-4xl mb-2">🔍</div>
-                <div>No accounts found</div>
+                <div>Geen rekeningen gevonden</div>
             </div>
         </div>
         <div class="border-t p-4 flex justify-end bg-gray-50">
-            <button onclick="closeAccountPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+            <button onclick="closeAccountPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Annuleren</button>
         </div>
     </div>
 </div>
@@ -380,14 +397,14 @@
     <div class="bg-white rounded-lg shadow-xl w-[600px] max-w-[95vw] max-h-[85vh] flex flex-col mx-4">
         <div class="flex justify-between items-center p-4 border-b">
             <div>
-                <h3 class="text-lg font-bold">🏷️ Select Category</h3>
-                <p class="text-sm text-gray-500">Choose a category to assign to this rule</p>
+                <h3 class="text-lg font-bold">🏷️ Selecteer Categorie</h3>
+                <p class="text-sm text-gray-500">Kies een categorie om aan deze regel toe te wijzen</p>
             </div>
             <button onclick="closeRuleCategoryPicker()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
         </div>
         <div class="p-4 border-b">
             <input type="text" id="ruleCategorySearch"
-                   placeholder="🔍 Type to search categories..."
+                   placeholder="🔍 Typ om categorieën te zoeken..."
                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                    oninput="filterRuleCategories()">
         </div>
@@ -395,11 +412,11 @@
             <div id="ruleCategoryTreeContent"></div>
             <div id="ruleNoResults" class="hidden text-center py-8 text-gray-500">
                 <div class="text-4xl mb-2">🔍</div>
-                <div>No categories found</div>
+                <div>Geen categorieën gevonden</div>
             </div>
         </div>
         <div class="border-t p-4 flex justify-end bg-gray-50">
-            <button onclick="closeRuleCategoryPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Cancel</button>
+            <button onclick="closeRuleCategoryPicker()" class="px-4 py-2 border rounded-lg hover:bg-gray-100">Annuleren</button>
         </div>
     </div>
 </div>
@@ -577,7 +594,7 @@ function selectAccount(iban) {
             btn.classList.remove('text-gray-500');
             btn.classList.add('text-gray-900', 'font-medium');
         } else {
-            btn.textContent = '— Any —';
+            btn.textContent = '— Willekeurig —';
             btn.classList.add('text-gray-500');
             btn.classList.remove('text-gray-900', 'font-medium');
         }
@@ -589,7 +606,7 @@ function selectAccount(iban) {
             btn.classList.remove('text-gray-500');
             btn.classList.add('text-gray-900', 'font-medium');
         } else {
-            btn.textContent = '— Any —';
+            btn.textContent = '— Willekeurig —';
             btn.classList.add('text-gray-500');
             btn.classList.remove('text-gray-900', 'font-medium');
         }
@@ -606,12 +623,12 @@ function validateRuleForm() {
     const pattern = document.getElementById('pattern-input').value.trim();
     const counterAccount = document.getElementById('counter-account-input').value.trim();
     if (!pattern && !counterAccount) {
-        alert('Please provide at least a Merchant pattern or a Counter Account.');
+        alert('Geef ten minste een Naam / Omschrijving patroon of een Tegenrekening op.');
         return false;
     }
     const categoryId = document.getElementById('add-category-id').value;
     if (!categoryId) {
-        alert('Please select a category.');
+        alert('Selecteer een categorie.');
         return false;
     }
     return true;
@@ -620,6 +637,7 @@ function validateRuleForm() {
 // ===== Collect form data =====
 function getFormCriteria() {
     return {
+        field: document.getElementById('field-input').value,
         pattern: document.getElementById('pattern-input').value.trim(),
         counter_account: document.getElementById('counter-account-input').value.trim(),
         transaction_type: document.getElementById('type-input').value,
@@ -632,12 +650,12 @@ function getFormCriteria() {
 async function testRule() {
     const criteria = getFormCriteria();
     if (!criteria.pattern && !criteria.counter_account) {
-        alert('Enter a merchant pattern or select a counter account first.');
+        alert('Voer eerst een Naam / Omschrijving patroon in of selecteer een tegenrekening.');
         return;
     }
     
     document.getElementById('testModal').classList.remove('hidden');
-    document.getElementById('testModalContent').innerHTML = '<p class="text-gray-500 text-center py-4">⏳ Testing rule...</p>';
+    document.getElementById('testModalContent').innerHTML = '<p class="text-gray-500 text-center py-4">⏳ Regel testen...</p>';
     
     try {
         const [testResp, conflictResp] = await Promise.all([
@@ -652,25 +670,25 @@ async function testRule() {
             <div class="flex gap-6 mb-4">
                 <div class="bg-blue-50 rounded-lg px-4 py-3 flex-1 text-center">
                     <div class="text-2xl font-bold text-blue-700">${testData.total}</div>
-                    <div class="text-xs text-blue-600">Total matches</div>
+                    <div class="text-xs text-blue-600">Totale overeenkomsten</div>
                 </div>
                 <div class="bg-amber-50 rounded-lg px-4 py-3 flex-1 text-center">
                     <div class="text-2xl font-bold text-amber-700">${testData.uncategorized}</div>
-                    <div class="text-xs text-amber-600">Uncategorized</div>
+                    <div class="text-xs text-amber-600">Niet gecategoriseerd</div>
                 </div>
             </div>`;
         
         if (testData.samples && testData.samples.length > 0) {
-            html += `<div class="text-sm font-semibold text-gray-700 mb-2">Sample transactions:</div>
+            html += `<div class="text-sm font-semibold text-gray-700 mb-2">Voorbeeldtransacties:</div>
             <div class="overflow-x-auto rounded-lg border">
                 <table class="min-w-full text-sm">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Description</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Counter Acct</th>
-                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Amount</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Category</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Datum</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Mededelingen</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Tegenrekening</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium text-gray-500">Bedrag (EUR)</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Categorie</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">`;
@@ -687,22 +705,22 @@ async function testRule() {
             }
             html += '</tbody></table></div>';
             if (testData.total > testData.samples.length) {
-                html += `<p class="text-xs text-gray-400 mt-2 text-center">Showing ${testData.samples.length} of ${testData.total} matches</p>`;
+                html += `<p class="text-xs text-gray-400 mt-2 text-center">Toont ${testData.samples.length} van ${testData.total} overeenkomsten</p>`;
             }
         } else {
-            html += '<p class="text-center text-gray-500 py-4">No transactions match this rule criteria.</p>';
+            html += '<p class="text-center text-gray-500 py-4">Geen transacties komen overeen met deze regelcriteria.</p>';
         }
         
         // Conflicts section
         if (conflictData.conflicts && conflictData.conflicts.length > 0) {
             html += `<div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <div class="font-semibold text-amber-800 mb-2">⚠️ Overlapping rules (${conflictData.conflicts.length}):</div>
+                <div class="font-semibold text-amber-800 mb-2">⚠️ Overlappende regels (${conflictData.conflicts.length}):</div>
                 <ul class="text-sm text-amber-700 space-y-1">`;
             for (const c of conflictData.conflicts) {
                 const parts = [];
                 if (c.pattern) parts.push(`%${c.pattern}%`);
                 if (c.counter_account) parts.push(c.counter_account);
-                html += `<li>Rule #${c.id}: <strong>${parts.join(' + ') || 'any'}</strong> → <span class="text-blue-700">${c.category_name}</span></li>`;
+                html += `<li>Regel #${c.id}: <strong>${parts.join(' + ') || 'elke'}</strong> → <span class="text-blue-700">${c.category_name}</span></li>`;
             }
             html += '</ul></div>';
         }
@@ -710,7 +728,7 @@ async function testRule() {
         document.getElementById('testModalContent').innerHTML = html;
         
     } catch (err) {
-        document.getElementById('testModalContent').innerHTML = `<p class="text-red-600">Error: ${err.message}</p>`;
+        document.getElementById('testModalContent').innerHTML = `<p class="text-red-600">Fout: ${err.message}</p>`;
     }
 }
 
@@ -724,10 +742,11 @@ document.getElementById('testModal').addEventListener('click', function(e) {
 // ===== Edit Modal =====
 let currentEditRuleId = null;
 
-function openEditModal(id, pattern, counterAccount, categoryId, active, minAmount, maxAmount, transactionType) {
+function openEditModal(id, pattern, counterAccount, categoryId, active, minAmount, maxAmount, transactionType, field) {
     currentEditRuleId = id;
     document.getElementById('editModal').classList.remove('hidden');
     document.getElementById('editForm').action = `/rules/edit/${id}`;
+    document.getElementById('editField').value = field || 'description';
     document.getElementById('editPattern').value = pattern || '';
     document.getElementById('editCounterAccount').value = counterAccount || '';
     // Set the account picker button text
@@ -741,7 +760,7 @@ function openEditModal(id, pattern, counterAccount, categoryId, active, minAmoun
         editAccBtn.classList.remove('text-gray-500');
         editAccBtn.classList.add('text-gray-900', 'font-medium');
     } else {
-        editAccBtn.textContent = '— Any —';
+        editAccBtn.textContent = '— Willekeurig —';
         editAccBtn.classList.add('text-gray-500');
         editAccBtn.classList.remove('text-gray-900', 'font-medium');
     }
@@ -755,7 +774,7 @@ function openEditModal(id, pattern, counterAccount, categoryId, active, minAmoun
         editCatBtn.classList.remove('text-gray-500');
         editCatBtn.classList.add('text-gray-900', 'font-medium');
     } else {
-        editCatBtn.textContent = 'Select Category...';
+        editCatBtn.textContent = 'Selecteer Categorie...';
         editCatBtn.classList.add('text-gray-500');
         editCatBtn.classList.remove('text-gray-900', 'font-medium');
     }
@@ -769,6 +788,7 @@ function openEditModal(id, pattern, counterAccount, categoryId, active, minAmoun
 
 async function checkEditConflicts() {
     const criteria = {
+        field: document.getElementById('editField').value,
         pattern: document.getElementById('editPattern').value.trim(),
         counter_account: document.getElementById('editCounterAccount').value.trim(),
         transaction_type: document.getElementById('editTransactionType').value,
@@ -793,7 +813,7 @@ async function checkEditConflicts() {
                 const parts = [];
                 if (c.pattern) parts.push(`%${c.pattern}%`);
                 if (c.counter_account) parts.push(c.counter_account);
-                html += `<li>Rule #${c.id}: <strong>${parts.join(' + ') || 'any'}</strong> → ${c.category_name}</li>`;
+                html += `<li>Regel #${c.id}: <strong>${parts.join(' + ') || 'elke'}</strong> → ${c.category_name}</li>`;
             }
             html += '</ul>';
             document.getElementById('editConflictContent').innerHTML = html;
@@ -896,12 +916,12 @@ async function saveRuleOrder() {
         });
         const data = await resp.json();
         if (data.success) {
-            showToast('Priority order saved');
+            showToast('Prioriteitsvolgorde opgeslagen');
         } else {
-            showToast('Reorder failed: ' + (data.error || 'unknown'), 'error');
+            showToast('Herordenen mislukt: ' + (data.error || 'onbekend'), 'error');
         }
     } catch(e) {
-        showToast('Reorder error', 'error');
+        showToast('Fout bij herordenen', 'error');
     }
 }
 

@@ -221,9 +221,9 @@ def add_category():
     
     result = db.add_category(name, parent_id, icon=icon)
     if result:
-        flash('Category added!', 'success')
+        flash('Categorie toegevoegd!', 'success')
     else:
-        flash('Category already exists', 'error')
+        flash('Categorie bestaat al', 'error')
     
     return redirect(url_for('categories.categories'))
 
@@ -250,7 +250,7 @@ def api_add_category():
     parent_name = None
     
     if not name:
-        return jsonify({'success': False, 'error': 'Category name is required'}), 400
+        return jsonify({'success': False, 'error': 'Categorie naam is verplicht'}), 400
     
     if parent_id:
         parent_id = int(parent_id)
@@ -268,7 +268,7 @@ def api_add_category():
             'category': {'id': result, 'name': display_name, 'icon': icon}
         })
     else:
-        return jsonify({'success': False, 'error': 'Category already exists'}), 400
+        return jsonify({'success': False, 'error': 'Categorie bestaat al'}), 400
 
 
 @bp.route('/api/categories', methods=['GET'])
@@ -292,7 +292,7 @@ def api_rename_category(category_id):
     new_name = data.get('name', '').strip() if data else ''
     
     if not new_name:
-        return jsonify({'success': False, 'error': 'Name cannot be empty'}), 400
+        return jsonify({'success': False, 'error': 'Naam kan niet leeg zijn'}), 400
     
     try:
         db.update_category(category_id, new_name)
@@ -300,5 +300,5 @@ def api_rename_category(category_id):
     except Exception as e:
         error_msg = str(e)
         if 'unique' in error_msg.lower() or 'duplicate' in error_msg.lower():
-            return jsonify({'success': False, 'error': 'A category with that name already exists'}), 400
+            return jsonify({'success': False, 'error': 'Een categorie met die naam bestaat al'}), 400
         return jsonify({'success': False, 'error': error_msg}), 400

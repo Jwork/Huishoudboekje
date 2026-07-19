@@ -51,8 +51,19 @@ class CategoryRepository(ConnectionManager):
             )
         return cursor.fetchone()
 
-    def add_category(self, name, parent_id=None, color='#808080', icon=None):
+    def add_category(self, name, parent_id=None, color=None, icon=None):
         """Add a new category"""
+        if not color or color == '#808080':
+            import hashlib
+            colors = [
+                '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', 
+                '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50', 
+                '#8BC34A', '#CDDC39', '#FFC107', '#FF9800', '#FF5722', 
+                '#795548', '#607D8B'
+            ]
+            hash_val = int(hashlib.md5(name.encode('utf-8')).hexdigest(), 16)
+            color = colors[hash_val % len(colors)]
+
         conn = self.connect()
         cursor = conn.cursor()
         cursor.execute(
@@ -362,6 +373,7 @@ class CategoryRepository(ConnectionManager):
 
         Returns dict with 'total', 'uncategorized', and 'sample' (up to 10 rows).
         """
+        field = kwargs.get('field', 'description') or 'description'
         pattern = kwargs.get('pattern')
         counter_account = kwargs.get('counter_account')
         transaction_type = kwargs.get('transaction_type')
@@ -372,7 +384,7 @@ class CategoryRepository(ConnectionManager):
         params = []
 
         if pattern:
-            conditions.append("LOWER(description) LIKE %s")
+            conditions.append(f"LOWER({field}) LIKE %s")
             params.append(f"%{pattern.lower()}%")
         if counter_account:
             conditions.append('counter_account = %s')
@@ -425,6 +437,7 @@ class CategoryRepository(ConnectionManager):
 
         Returns a list of conflicting rule dicts.
         """
+        field = kwargs.get('field', 'description') or 'description'
         pattern = kwargs.get('pattern')
         counter_account = kwargs.get('counter_account')
         transaction_type = kwargs.get('transaction_type')
@@ -436,8 +449,8 @@ class CategoryRepository(ConnectionManager):
         params = []
 
         if pattern:
-            conditions.append("LOWER(pattern) LIKE %s")
-            params.append(f"%{pattern.lower()}%")
+            conditions.append("LOWER(pattern) LIKE %s AND field = %s")
+            params.extend([f"%{pattern.lower()}%", field])
         if counter_account:
             conditions.append('counter_account = %s')
             params.append(counter_account)
