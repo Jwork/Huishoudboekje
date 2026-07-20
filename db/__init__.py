@@ -147,9 +147,9 @@ class Database:
         """Get spending summary by category"""
         return self._categories.get_category_summary(filters)
     
-    def add_categorization_rule(self, pattern, category_id, field='description', priority=0, min_amount=None, max_amount=None, transaction_type=None, counter_account=None):
+    def add_categorization_rule(self, pattern=None, notes_pattern=None, category_id=None, priority=0, min_amount=None, max_amount=None, transaction_type=None, counter_account=None):
         """Add an auto-categorization rule"""
-        return self._categories.add_categorization_rule(pattern, category_id, field, priority, min_amount, max_amount, transaction_type, counter_account)
+        return self._categories.add_categorization_rule(pattern=pattern, notes_pattern=notes_pattern, category_id=category_id, priority=priority, min_amount=min_amount, max_amount=max_amount, transaction_type=transaction_type, counter_account=counter_account)
     
     def update_categorization_rule(self, rule_id, **kwargs):
         """Update a categorization rule"""
