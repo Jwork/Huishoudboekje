@@ -178,7 +178,7 @@ class CategoryRepository(ConnectionManager):
     # Categorization Rules
     # ========================
 
-    def add_categorization_rule(self, pattern, category_id, field='description',
+    def add_categorization_rule(self, pattern=None, notes_pattern=None, category_id=None,
                                 priority=0, min_amount=None, max_amount=None,
                                 transaction_type=None, counter_account=None):
         """Add an auto-categorization rule"""
@@ -186,11 +186,11 @@ class CategoryRepository(ConnectionManager):
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO categorization_rules
-                (pattern, category_id, field, priority, min_amount, max_amount,
+                (pattern, notes_pattern, category_id, priority, min_amount, max_amount,
                  transaction_type, counter_account)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """, (pattern, category_id, field, priority,
+        """, (pattern, notes_pattern, category_id, priority,
               min_amount, max_amount, transaction_type, counter_account))
         result = cursor.fetchone()
         conn.commit()
@@ -256,7 +256,7 @@ class CategoryRepository(ConnectionManager):
 
         # Fetch active rules ordered by priority
         cursor.execute("""
-            SELECT id, pattern, field, category_id, counter_account,
+            SELECT id, pattern, notes_pattern, category_id, counter_account,
                    transaction_type, min_amount, max_amount
             FROM categorization_rules
             WHERE active = TRUE
@@ -273,10 +273,13 @@ class CategoryRepository(ConnectionManager):
             conditions = ['category_id IS NULL']
             params = []
 
-            if rule['pattern']:
-                field = rule.get('field', 'description') or 'description'
-                conditions.append(f"LOWER({field}) LIKE %s")
+            if rule.get('pattern'):
+                conditions.append("LOWER(description) LIKE %s")
                 params.append(f"%{rule['pattern'].lower()}%")
+
+            if rule.get('notes_pattern'):
+                conditions.append("LOWER(notes) LIKE %s")
+                params.append(f"%{rule['notes_pattern'].lower()}%")
 
             if rule.get('counter_account'):
                 conditions.append('counter_account = %s')
@@ -326,10 +329,13 @@ class CategoryRepository(ConnectionManager):
             conditions = []
             params = []
 
-            if rule['pattern']:
-                field = rule.get('field', 'description') or 'description'
-                conditions.append(f"LOWER({field}) LIKE %s")
+            if rule.get('pattern'):
+                conditions.append("LOWER(description) LIKE %s")
                 params.append(f"%{rule['pattern'].lower()}%")
+
+            if rule.get('notes_pattern'):
+                conditions.append("LOWER(notes) LIKE %s")
+                params.append(f"%{rule['notes_pattern'].lower()}%")
 
             if rule.get('counter_account'):
                 conditions.append('counter_account = %s')
@@ -373,8 +379,8 @@ class CategoryRepository(ConnectionManager):
 
         Returns dict with 'total', 'uncategorized', and 'sample' (up to 10 rows).
         """
-        field = kwargs.get('field', 'description') or 'description'
         pattern = kwargs.get('pattern')
+        notes_pattern = kwargs.get('notes_pattern')
         counter_account = kwargs.get('counter_account')
         transaction_type = kwargs.get('transaction_type')
         min_amount = kwargs.get('min_amount')
@@ -384,8 +390,11 @@ class CategoryRepository(ConnectionManager):
         params = []
 
         if pattern:
-            conditions.append(f"LOWER({field}) LIKE %s")
+            conditions.append("LOWER(description) LIKE %s")
             params.append(f"%{pattern.lower()}%")
+        if notes_pattern:
+            conditions.append("LOWER(notes) LIKE %s")
+            params.append(f"%{notes_pattern.lower()}%")
         if counter_account:
             conditions.append('counter_account = %s')
             params.append(counter_account)
@@ -437,8 +446,8 @@ class CategoryRepository(ConnectionManager):
 
         Returns a list of conflicting rule dicts.
         """
-        field = kwargs.get('field', 'description') or 'description'
         pattern = kwargs.get('pattern')
+        notes_pattern = kwargs.get('notes_pattern')
         counter_account = kwargs.get('counter_account')
         transaction_type = kwargs.get('transaction_type')
         min_amount = kwargs.get('min_amount')
@@ -449,8 +458,11 @@ class CategoryRepository(ConnectionManager):
         params = []
 
         if pattern:
-            conditions.append("LOWER(pattern) LIKE %s AND field = %s")
-            params.extend([f"%{pattern.lower()}%", field])
+            conditions.append("LOWER(pattern) LIKE %s")
+            params.append(f"%{pattern.lower()}%")
+        if notes_pattern:
+            conditions.append("LOWER(notes_pattern) LIKE %s")
+            params.append(f"%{notes_pattern.lower()}%")
         if counter_account:
             conditions.append('counter_account = %s')
             params.append(counter_account)

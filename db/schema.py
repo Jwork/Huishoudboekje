@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS private.transactions (
 CREATE TABLE IF NOT EXISTS private.categorization_rules (
     id SERIAL PRIMARY KEY,
     pattern TEXT,
-    field TEXT DEFAULT 'description',
+    notes_pattern TEXT,
     category_id INTEGER NOT NULL REFERENCES private.categories(id),
     counter_account TEXT,
     transaction_type TEXT,

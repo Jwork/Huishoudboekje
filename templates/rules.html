@@ -24,17 +24,8 @@
     <div class="p-6">
         <form method="post" action="{{ url_for('rules.add') }}" id="rule-form" onsubmit="return validateRuleForm()">
             <div class="flex flex-wrap gap-4 items-end">
-                <!-- Field -->
-                <div class="w-56">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Zoek in veld</label>
-                    <select name="field" id="field-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                        <option value="description" {% if prefill.field == 'description' or not prefill.field %}selected{% endif %}>Naam / Omschrijving</option>
-                        <option value="notes" {% if prefill.field == 'notes' %}selected{% endif %}>Mededelingen (Notes)</option>
-                    </select>
-                </div>
-                
                 <!-- Merchant (fuzzy) -->
-                <div class="flex-1 min-w-[250px]">
+                <div class="flex-1 min-w-[200px]">
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Naam / Omschrijving <span class="font-normal text-gray-400">(fuzzy)</span></label>
                     <input type="text" name="pattern" list="merchant-list" id="pattern-input"
                            value="{{ prefill.pattern or '' }}"
@@ -45,9 +36,8 @@
                         <option value="{{ m.name }}">{{ m.name }} ({{ m.count }} transacties)</option>
                         {% endfor %}
                     </datalist>
-                    <p class="text-xs text-gray-400 mt-1">Komt overeen als de mededelingen deze tekst <em>bevatten</em></p>
                 </div>
-                
+
                 <!-- Counter Account (strict) -->
                 <div class="flex-1 min-w-[250px]">
                     <label class="block text-sm font-semibold text-gray-700 mb-1">Tegenrekening <span class="font-normal text-gray-400">(strikt)</span></label>
@@ -58,6 +48,15 @@
                         — Willekeurig —
                     </button>
                     <p class="text-xs text-gray-400 mt-1">Exacte IBAN-match op tegenrekening</p>
+                </div>
+
+                <!-- Notes (fuzzy) -->
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Mededelingen <span class="font-normal text-gray-400">(fuzzy)</span></label>
+                    <input type="text" name="notes_pattern" id="notes-pattern-input"
+                           value="{{ prefill.notes_pattern or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
+                           placeholder="bijv. polisnummer...">
                 </div>
                 
                 <!-- Type -->
@@ -125,6 +124,7 @@
                     <th class="px-2 py-3 w-8"></th>
                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Naam / Omschrijving (fuzzy)</th>
                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tegenrekening (strikt)</th>
+                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Mededelingen (fuzzy)</th>
                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Type / Bedrag (EUR)</th>
                     <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Wijst toe aan</th>
                     <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Overeenkomsten</th>
@@ -138,7 +138,7 @@
                     <tr class="hover:bg-gray-50 transition-colors rule-row" data-rule-id="{{ rule.id }}">
                         <!-- Drag handle -->
                         <td class="px-2 py-4 text-center cursor-grab drag-handle text-gray-400 hover:text-gray-600" title="Drag to reorder">☰</td>
-                        <!-- Merchant pattern -->
+                        <!-- Merchant Pattern -->
                         <td class="px-4 py-4 whitespace-nowrap">
                             {% if rule.pattern %}
                             <span class="font-medium text-gray-900">%{{ rule.pattern }}%</span>
@@ -153,6 +153,14 @@
                                 <span class="font-medium text-gray-900">{{ rule.counter_account_name }}</span>
                                 <span class="text-gray-400 text-xs block">{{ rule.counter_account }}</span>
                             </div>
+                            {% else %}
+                            <span class="text-gray-400 italic">—</span>
+                            {% endif %}
+                        </td>
+                        <!-- Notes Pattern -->
+                        <td class="px-4 py-4 whitespace-nowrap">
+                            {% if rule.notes_pattern %}
+                            <span class="font-medium text-gray-900">%{{ rule.notes_pattern }}%</span>
                             {% else %}
                             <span class="text-gray-400 italic">—</span>
                             {% endif %}
@@ -205,7 +213,7 @@
                         </td>
                         <!-- Actions -->
                         <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick='openEditModal({{ rule.id }}, {{ rule.pattern|tojson }}, {{ rule.counter_account|tojson }}, "{{ rule.category_id }}", {{ rule.active }}, {{ rule.min_amount|tojson }}, {{ rule.max_amount|tojson }}, "{{ rule.transaction_type|default("", true) }}", "{{ rule.field|default("description", true) }}")' 
+                            <button onclick='openEditModal({{ rule.id }}, {{ rule.pattern|tojson }}, {{ rule.notes_pattern|tojson }}, {{ rule.counter_account|tojson }}, "{{ rule.category_id }}", {{ rule.active }}, {{ rule.min_amount|tojson }}, {{ rule.max_amount|tojson }}, "{{ rule.transaction_type|default("", true) }}")' 
                                     class="text-indigo-600 hover:text-indigo-900 mr-3 font-semibold">Bewerken</button>
                             <form method="post" action="{{ url_for('rules.delete', rule_id=rule.id) }}" onsubmit="return confirm('Deze regel verwijderen?');" class="inline">
                                 <button type="submit" class="text-red-600 hover:text-red-900 font-semibold">Verwijderen</button>
@@ -215,7 +223,7 @@
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="8" class="px-6 py-10 text-center text-gray-500">
+                        <td colspan="9" class="px-6 py-10 text-center text-gray-500">
                             <p class="text-lg">Nog geen regels gedefinieerd.</p>
                             <p class="text-sm mt-1">Voeg hierboven een regel toe om je transacties automatisch te categoriseren.</p>
                         </td>
@@ -241,21 +249,13 @@
         <div class="p-6">
             <form id="editForm" method="post" action="">
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Zoek in veld</label>
-                    <select id="editField" name="field" class="shadow-sm border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
-                        <option value="description">Naam / Omschrijving</option>
-                        <option value="notes">Mededelingen (Notes)</option>
-                    </select>
-                </div>
-
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold mb-2">Patroon <span class="font-normal text-gray-400">(fuzzy)</span></label>
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Naam / Omschrijving Patroon <span class="font-normal text-gray-400">(fuzzy)</span></label>
                     <input type="text" id="editPattern" name="pattern" list="merchant-list"
                            class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                            placeholder="bijv. Albert Heijn">
-                    <p class="text-xs text-gray-500 mt-1">Fuzzy match op mededelingen. Laat leeg om elke naam / omschrijving te matchen.</p>
+                    <p class="text-xs text-gray-500 mt-1">Komt overeen als de omschrijving deze tekst bevat.</p>
                 </div>
-                
+
                 <div class="mb-4">
                     <label class="block text-gray-700 text-sm font-bold mb-2">Tegenrekening <span class="font-normal text-gray-400">(strikte IBAN)</span></label>
                     <input type="hidden" id="editCounterAccount" name="counter_account">
@@ -265,6 +265,14 @@
                         — Willekeurig —
                     </button>
                     <p class="text-xs text-gray-500 mt-1">Exacte IBAN-match. Laat leeg om elke tegenrekening te matchen.</p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">Mededelingen Patroon <span class="font-normal text-gray-400">(fuzzy)</span></label>
+                    <input type="text" id="editNotesPattern" name="notes_pattern"
+                           class="shadow-sm appearance-none border border-gray-300 rounded-lg w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           placeholder="bijv. polisnummer...">
+                    <p class="text-xs text-gray-500 mt-1">Komt overeen als de mededelingen (notes) deze tekst bevatten.</p>
                 </div>
                 
                 <div class="mb-4">
@@ -621,9 +629,10 @@ document.getElementById('accountPickerModal')?.addEventListener('click', e => {
 // ===== Validation =====
 function validateRuleForm() {
     const pattern = document.getElementById('pattern-input').value.trim();
+    const notesPattern = document.getElementById('notes-pattern-input').value.trim();
     const counterAccount = document.getElementById('counter-account-input').value.trim();
-    if (!pattern && !counterAccount) {
-        alert('Geef ten minste een Naam / Omschrijving patroon of een Tegenrekening op.');
+    if (!pattern && !notesPattern && !counterAccount) {
+        alert('Geef ten minste een Naam / Omschrijving patroon, Mededelingen patroon of een Tegenrekening op.');
         return false;
     }
     const categoryId = document.getElementById('add-category-id').value;
@@ -637,8 +646,8 @@ function validateRuleForm() {
 // ===== Collect form data =====
 function getFormCriteria() {
     return {
-        field: document.getElementById('field-input').value,
         pattern: document.getElementById('pattern-input').value.trim(),
+        notes_pattern: document.getElementById('notes-pattern-input').value.trim(),
         counter_account: document.getElementById('counter-account-input').value.trim(),
         transaction_type: document.getElementById('type-input').value,
         min_amount: document.getElementById('min-amount-input').value || null,
@@ -649,8 +658,8 @@ function getFormCriteria() {
 // ===== Test Rule =====
 async function testRule() {
     const criteria = getFormCriteria();
-    if (!criteria.pattern && !criteria.counter_account) {
-        alert('Voer eerst een Naam / Omschrijving patroon in of selecteer een tegenrekening.');
+    if (!criteria.pattern && !criteria.notes_pattern && !criteria.counter_account) {
+        alert('Voer eerst een patroon in of selecteer een tegenrekening.');
         return;
     }
     
@@ -742,12 +751,12 @@ document.getElementById('testModal').addEventListener('click', function(e) {
 // ===== Edit Modal =====
 let currentEditRuleId = null;
 
-function openEditModal(id, pattern, counterAccount, categoryId, active, minAmount, maxAmount, transactionType, field) {
+function openEditModal(id, pattern, notesPattern, counterAccount, categoryId, active, minAmount, maxAmount, transactionType) {
     currentEditRuleId = id;
     document.getElementById('editModal').classList.remove('hidden');
     document.getElementById('editForm').action = `/rules/edit/${id}`;
-    document.getElementById('editField').value = field || 'description';
     document.getElementById('editPattern').value = pattern || '';
+    document.getElementById('editNotesPattern').value = notesPattern || '';
     document.getElementById('editCounterAccount').value = counterAccount || '';
     // Set the account picker button text
     const editAccBtn = document.getElementById('edit-account-btn');
@@ -788,8 +797,8 @@ function openEditModal(id, pattern, counterAccount, categoryId, active, minAmoun
 
 async function checkEditConflicts() {
     const criteria = {
-        field: document.getElementById('editField').value,
         pattern: document.getElementById('editPattern').value.trim(),
+        notes_pattern: document.getElementById('editNotesPattern').value.trim(),
         counter_account: document.getElementById('editCounterAccount').value.trim(),
         transaction_type: document.getElementById('editTransactionType').value,
         min_amount: document.getElementById('editMinAmount').value || null,
@@ -797,7 +806,7 @@ async function checkEditConflicts() {
         exclude_rule_id: currentEditRuleId
     };
     
-    if (!criteria.pattern && !criteria.counter_account) return;
+    if (!criteria.pattern && !criteria.notes_pattern && !criteria.counter_account) return;
     
     try {
         const resp = await fetch('/api/rules/conflicts', {

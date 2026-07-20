@@ -117,15 +117,15 @@ def add_get():
 @bp.route('/rules/add', methods=['POST'])
 def add():
     pattern = request.form.get('pattern', '').strip()
-    field = request.form.get('field', 'description')
+    notes_pattern = request.form.get('notes_pattern', '').strip()
     category_id = request.form.get('category_id')
     counter_account = request.form.get('counter_account', '').strip()
     transaction_type = request.form.get('transaction_type', '').strip()
     min_amount = request.form.get('min_amount', '').strip()
     max_amount = request.form.get('max_amount', '').strip()
     
-    if not pattern and not counter_account:
-        flash('Minimaal een Naam / Omschrijving patroon of Tegenrekening is vereist', 'error')
+    if not pattern and not notes_pattern and not counter_account:
+        flash('Minimaal een Naam / Omschrijving patroon, Mededelingen patroon of Tegenrekening is vereist', 'error')
         return redirect(url_for('rules.index'))
     if not category_id:
         flash('Categorie is vereist', 'error')
@@ -140,10 +140,11 @@ def add():
         trans_type = transaction_type if transaction_type else None
         ca = counter_account if counter_account else None
         pat = pattern if pattern else None
+        n_pat = notes_pattern if notes_pattern else None
             
-        db.add_categorization_rule(pat, category_id, field, min_amount=min_amt, 
-                                   max_amount=max_amt, transaction_type=trans_type,
-                                   counter_account=ca)
+        db.add_categorization_rule(pattern=pat, notes_pattern=n_pat, category_id=category_id, 
+                                   min_amount=min_amt, max_amount=max_amt, 
+                                   transaction_type=trans_type, counter_account=ca)
         flash('Regel succesvol toegevoegd', 'success')
         return redirect(url_for('rules.index'))
     except Exception as e:
@@ -154,7 +155,7 @@ def add():
 @bp.route('/rules/edit/<int:rule_id>', methods=['POST'])
 def edit(rule_id):
     pattern = request.form.get('pattern', '').strip()
-    field = request.form.get('field', 'description')
+    notes_pattern = request.form.get('notes_pattern', '').strip()
     category_id = request.form.get('category_id')
     counter_account = request.form.get('counter_account', '').strip()
     active = request.form.get('active')
@@ -171,8 +172,9 @@ def edit(rule_id):
     trans_type = transaction_type if transaction_type else None
     ca = counter_account if counter_account else None
     pat = pattern if pattern else None
+    n_pat = notes_pattern if notes_pattern else None
     
-    db.update_categorization_rule(rule_id, pattern=pat, field=field, category_id=category_id, 
+    db.update_categorization_rule(rule_id, pattern=pat, notes_pattern=n_pat, category_id=category_id, 
                                  active=active_val, 
                                  min_amount=min_amt, max_amount=max_amt, 
                                  transaction_type=trans_type,
@@ -203,8 +205,8 @@ def apply_all():
 def api_test_rule():
     """Preview how many transactions a rule would match."""
     data = request.get_json(force=True)
-    field = data.get('field', 'description')
     pattern = data.get('pattern', '').strip() or None
+    notes_pattern = data.get('notes_pattern', '').strip() or None
     counter_account = data.get('counter_account', '').strip() or None
     transaction_type = data.get('transaction_type', '').strip() or None
     min_amount = data.get('min_amount')
@@ -222,7 +224,7 @@ def api_test_rule():
     if max_amount == 0: max_amount = None
     
     result = db.test_rule(
-        pattern=pattern, field=field, counter_account=counter_account,
+        pattern=pattern, notes_pattern=notes_pattern, counter_account=counter_account,
         transaction_type=transaction_type,
         min_amount=min_amount, max_amount=max_amount
     )
@@ -233,8 +235,8 @@ def api_test_rule():
 def api_check_conflicts():
     """Check for conflicting rules before creating/editing."""
     data = request.get_json(force=True)
-    field = data.get('field', 'description')
     pattern = data.get('pattern', '').strip() or None
+    notes_pattern = data.get('notes_pattern', '').strip() or None
     counter_account = data.get('counter_account', '').strip() or None
     transaction_type = data.get('transaction_type', '').strip() or None
     min_amount = data.get('min_amount')
@@ -251,7 +253,7 @@ def api_check_conflicts():
         max_amount = None
     
     conflicts = db.find_conflicting_rules(
-        pattern=pattern, field=field, counter_account=counter_account,
+        pattern=pattern, notes_pattern=notes_pattern, counter_account=counter_account,
         transaction_type=transaction_type,
         min_amount=min_amount, max_amount=max_amount,
         exclude_rule_id=exclude_rule_id
